@@ -13,7 +13,7 @@ export default function Dashboard() {
 
   const fetchEvents = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/events');
+      const res = await fetch('https://retail-cctv-analytics-backend.onrender.com/api/events');
       if (res.ok) {
         const data = await res.json();
         setEvents(data);
@@ -25,7 +25,7 @@ export default function Dashboard() {
 
   const fetchVideos = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/videos');
+      const res = await fetch('https://retail-cctv-analytics-backend.onrender.com/api/videos');
       if (res.ok) {
         const data = await res.json();
         setVideos(data);
@@ -169,7 +169,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <VideoPlayer 
-                src={selectedVideo && selectedVideo.status === 'completed' ? `http://localhost:8000/api/videos/${selectedVideo.id}/stream` : null} 
+                src={selectedVideo && selectedVideo.status === 'completed' ? `https://retail-cctv-analytics-backend.onrender.com/api/videos/${selectedVideo.id}/stream` : null} 
                 title={selectedVideo ? selectedVideo.filename : "Live Camera Feed"}
               />
               {selectedVideo && selectedVideo.status === 'processing' && (

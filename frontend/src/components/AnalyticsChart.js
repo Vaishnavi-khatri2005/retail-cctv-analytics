@@ -7,7 +7,7 @@ export default function AnalyticsChart() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('http://localhost:8000/api/analytics/footfall');
+        const res = await fetch('https://retail-cctv-analytics-backend.onrender.com/api/analytics/footfall');
         if (res.ok) {
           const json = await res.json();
           setData(json);

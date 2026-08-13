@@ -1,6 +1,7 @@
 # Retail CCTV Analytics
 
 **Live Demo (Frontend):** [https://retail-cctv-analytics.vercel.app](https://retail-cctv-analytics.vercel.app)
+**Live API (Backend):** [https://retail-cctv-analytics-backend.onrender.com](https://retail-cctv-analytics-backend.onrender.com)
 
 An AI-powered CCTV Analytics system that processes retail video footage using OpenCV and presents insights on a modern Next.js dashboard. 
 

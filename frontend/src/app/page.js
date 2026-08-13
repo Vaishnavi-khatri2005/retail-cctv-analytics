@@ -107,9 +107,9 @@ export default function Home() {
   const fetchData = async () => {
     try {
       const [eventsRes, videosRes, analyticsRes] = await Promise.all([
-        fetch('http://localhost:8000/api/events'),
-        fetch('http://localhost:8000/api/videos'),
-        fetch('http://localhost:8000/api/analytics/footfall').catch(() => null)
+        fetch('https://retail-cctv-analytics-backend.onrender.com/api/events'),
+        fetch('https://retail-cctv-analytics-backend.onrender.com/api/videos'),
+        fetch('https://retail-cctv-analytics-backend.onrender.com/api/analytics/footfall').catch(() => null)
       ]);
 
       if (eventsRes.ok) {
@@ -338,7 +338,7 @@ export default function Home() {
               
               <div className="mt-5 relative z-10 w-full rounded-xl overflow-hidden shadow-2xl border border-slate-800">
                 <VideoPlayer 
-                  src={selectedVideo && selectedVideo.status === 'completed' ? `http://localhost:8000/api/videos/${selectedVideo.id}/stream` : null} 
+                  src={selectedVideo && selectedVideo.status === 'completed' ? `https://retail-cctv-analytics-backend.onrender.com/api/videos/${selectedVideo.id}/stream` : null} 
                   title={selectedVideo ? selectedVideo.filename : "Upload a video..."}
                 />
               </div>

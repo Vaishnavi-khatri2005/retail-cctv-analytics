@@ -26,7 +26,7 @@ export default function UploadModal({ isOpen, onClose }) {
     formData.append('file', file);
 
     try {
-      const res = await fetch('http://localhost:8000/api/videos/upload', {
+      const res = await fetch('https://retail-cctv-analytics-backend.onrender.com/api/videos/upload', {
         method: 'POST',
         body: formData,
       });
