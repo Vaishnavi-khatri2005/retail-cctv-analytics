@@ -369,7 +369,7 @@ function HomeContent() {
                 return (
                   <button
                     key={cam.id}
-                    onClick={() => setSelectedVideo({ id: cam.id, filename: cam.file, status: "completed" })}
+                    onClick={() => setSelectedVideo({ id: cam.id, filename: cam.file, name: cam.name, videoUrl: cam.videoUrl, status: "completed" })}
                     className={`text-left p-3.5 rounded-xl border transition flex flex-col justify-between cursor-pointer ${
                       isSelected 
                         ? "border-blue-600 bg-blue-50 ring-2 ring-blue-500/20 shadow-sm" 
@@ -402,7 +402,7 @@ function HomeContent() {
               <div>
                 <p className="text-sm text-slate-300">Live Processed Feed</p>
                 <h2 className="mt-1 text-xl font-semibold">
-                   {selectedVideo ? selectedVideo.filename : "Cam 1: Main Aisle"}
+                   {selectedVideo ? (selectedVideo.name || selectedVideo.filename) : "Cam 1: Main Aisle"}
                 </h2>
               </div>
               <ShieldCheck className="text-emerald-400" size={26} />
@@ -410,8 +410,9 @@ function HomeContent() {
             
             <div className="mt-5 relative z-10 w-full rounded-xl overflow-hidden shadow-2xl border border-slate-800">
               <VideoPlayer 
-                src={selectedVideo && selectedVideo.status === 'completed' ? `${BACKEND_URL}/api/videos/${selectedVideo.id}/stream` : null} 
-                title={selectedVideo ? selectedVideo.filename : "Select a camera channel..."}
+                src={selectedVideo?.videoUrl || (defaultPrerecordedCams.find(c => c.id === (selectedVideo?.id || 1))?.videoUrl)} 
+                title={selectedVideo ? (selectedVideo.name || selectedVideo.filename) : "Cam 1: Main Aisle"}
+                tag={defaultPrerecordedCams.find(c => c.id === (selectedVideo?.id || 1))?.tag || "Footfall"}
               />
             </div>
 

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">RetailVision AI module architecture</title>
+  <desc id="desc">A system diagram showing CCTV footage moving through video ingestion, computer vision processing, zone monitoring, footfall analytics, alert management and the management dashboard.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071427"/><stop offset="1" stop-color="#102a4d"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#000" flood-opacity=".3"/></filter>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto"><path d="M0,0 L10,5.5 L0,11 z" fill="#75b8ff"/></marker>
+    <style>
+      .title{font:700 38px Arial,sans-serif;fill:#f8fbff}.subtitle{font:400 18px Arial,sans-serif;fill:#a9c7ea}.module{font:700 20px Arial,sans-serif;fill:#f7fbff}.body{font:400 15px Arial,sans-serif;fill:#c9d9ec}.label{font:600 14px Arial,sans-serif;fill:#9fd0ff}.pill{font:700 13px Arial,sans-serif;fill:#dbeeff}.note{font:400 14px Arial,sans-serif;fill:#97b4d4}
+    </style>
+  </defs>
+  <rect width="1600" height="980" fill="url(#bg)"/>
+  <circle cx="1440" cy="80" r="260" fill="#1760b4" opacity=".13"/><circle cx="150" cy="880" r="300" fill="#0f9f8b" opacity=".09"/>
+  <text x="70" y="75" class="title">RetailVision AI</text><text x="70" y="108" class="subtitle">Smart retail CCTV analytics — module architecture and data flow</text>
+  <line x1="70" x2="1530" y1="137" y2="137" stroke="#32638f"/>
+  <g filter="url(#shadow)">
+    <rect x="70" y="205" width="205" height="152" rx="18" fill="#123b68" stroke="#5aa8f4" stroke-width="2"/>
+    <text x="96" y="247" class="module">1. CCTV Footage</text><text x="96" y="278" class="body">Store cameras</text><text x="96" y="302" class="body">MP4 / AVI clips</text><text x="96" y="330" class="label">INPUT</text>
+    <rect x="355" y="205" width="205" height="152" rx="18" fill="#163d75" stroke="#75b8ff" stroke-width="2"/>
+    <text x="381" y="247" class="module">2. Video Ingestion</text><text x="381" y="278" class="body">Upload API</text><text x="381" y="302" class="body">File + metadata storage</text><text x="381" y="330" class="label">FASTAPI</text>
+    <rect x="640" y="205" width="235" height="152" rx="18" fill="#0e5a58" stroke="#4ed1bc" stroke-width="2"/>
+    <text x="666" y="247" class="module">3. Vision Processing</text><text x="666" y="278" class="body">OpenCV MOG2</text><text x="666" y="302" class="body">Contours + bounding boxes</text><text x="666" y="330" class="label">COMPUTER VISION</text>
+    <rect x="955" y="205" width="235" height="152" rx="18" fill="#6d3b16" stroke="#f4b85a" stroke-width="2"/>
+    <text x="981" y="247" class="module">4. Zone Monitoring</text><text x="981" y="278" class="body">Right-half zone rule</text><text x="981" y="302" class="body">Restricted-entry detection</text><text x="981" y="330" class="label">SECURITY LOGIC</text>
+    <rect x="1270" y="205" width="260" height="152" rx="18" fill="#54316f" stroke="#c38cf2" stroke-width="2"/>
+    <text x="1296" y="247" class="module">5. Event Store</text><text x="1296" y="278" class="body">SQLite event records</text><text x="1296" y="302" class="body">Alert / info timestamps</text><text x="1296" y="330" class="label">PERSISTENCE</text>
+  </g>
+  <g stroke="#75b8ff" stroke-width="3" fill="none" marker-end="url(#arrow)"><path d="M275 281H355"/><path d="M560 281H640"/><path d="M875 281H955"/><path d="M1190 281H1270"/></g>
+  <g filter="url(#shadow)">
+    <rect x="250" y="550" width="290" height="172" rx="20" fill="#124d61" stroke="#51d0d4" stroke-width="2"/>
+    <text x="278" y="594" class="module">6. Footfall Analytics</text><text x="278" y="628" class="body">Hourly visitor volume</text><text x="278" y="653" class="body">Peak-time reporting</text><rect x="278" y="676" width="132" height="26" rx="13" fill="#147b83"/><text x="293" y="695" class="pill">ANALYTICS API</text>
+    <rect x="655" y="550" width="290" height="172" rx="20" fill="#6b282f" stroke="#fa8791" stroke-width="2"/>
+    <text x="683" y="594" class="module">7. Alert Management</text><text x="683" y="628" class="body">Intrusion and motion events</text><text x="683" y="653" class="body">Investigation workflow</text><rect x="683" y="676" width="112" height="26" rx="13" fill="#ad3a46"/><text x="698" y="695" class="pill">EVENT API</text>
+    <rect x="1060" y="510" width="370" height="252" rx="22" fill="#173a70" stroke="#78aefa" stroke-width="2"/>
+    <text x="1091" y="558" class="module">8. Manager Dashboard</text><text x="1091" y="593" class="body">Next.js dashboard</text><rect x="1091" y="620" width="138" height="34" rx="9" fill="#255a9b"/><text x="1111" y="643" class="pill">Footfall charts</text><rect x="1246" y="620" width="145" height="34" rx="9" fill="#255a9b"/><text x="1267" y="643" class="pill">Recent events</text><rect x="1091" y="670" width="170" height="34" rx="9" fill="#255a9b"/><text x="1111" y="693" class="pill">Annotated video</text><rect x="1277" y="670" width="114" height="34" rx="9" fill="#255a9b"/><text x="1295" y="693" class="pill">Status</text>
+  </g>
+  <g stroke="#75b8ff" stroke-width="3" fill="none" marker-end="url(#arrow)"><path d="M760 357 C710 405,530 432,435 550"/><path d="M1080 357 C1000 416,835 441,800 550"/><path d="M540 636H655"/><path d="M945 636H1060"/><path d="M1400 357 C1450 410,1398 450,1325 510"/></g>
+  <text x="70" y="860" class="note">Detection loop: read frame → foreground mask → contour filtering → zone check → annotate video → log event → refresh dashboard.</text>
+  <rect x="70" y="887" width="1460" height="2" fill="#32638f"/><text x="70" y="925" class="note">RetailVision AI • FastAPI + OpenCV + SQLite + Next.js</text>
+</svg>

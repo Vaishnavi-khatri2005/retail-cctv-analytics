@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, status, BackgroundTasks, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 import os
 import sys
@@ -449,3 +449,48 @@ def get_footfall_analytics():
         {"time": "18:00", "footfall": 65},
         {"time": "20:00", "footfall": 30},
     ]
+
+# 📹 Live Shop RTSP / IP Camera Direct Streaming
+@app.get("/api/stream/rtsp")
+def stream_rtsp_feed(url: str = Query(..., description="RTSP or HTTP stream URL")):
+    """Streams live CCTV feed from shop RTSP/IP camera directly to browser via MJPEG."""
+    def generate_frames():
+        cap = cv2.VideoCapture(url)
+        try:
+            while cap.isOpened():
+                success, frame = cap.read()
+                if not success:
+                    break
+                ret, buffer = cv2.imencode('.jpg', frame)
+                if not ret:
+                    continue
+                frame_bytes = buffer.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        finally:
+            cap.release()
+
+    return StreamingResponse(
+        generate_frames(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
+class CameraConnectRequest(BaseModel):
+    name: str
+    rtsp_url: str
+    location: Optional[str] = "Shop Floor"
+
+@app.post("/api/cameras/connect")
+def test_camera_connection(req: CameraConnectRequest):
+    """Validates connectivity to an in-shop RTSP CCTV stream."""
+    cap = cv2.VideoCapture(req.rtsp_url)
+    is_opened = cap.isOpened()
+    cap.release()
+    return {
+        "name": req.name,
+        "rtsp_url": req.rtsp_url,
+        "location": req.location,
+        "connected": is_opened,
+        "status": "Online & Streaming" if is_opened else "Connection Timeout / Offline",
+        "stream_endpoint": f"/api/stream/rtsp?url={req.rtsp_url}" if is_opened else None
+    }
