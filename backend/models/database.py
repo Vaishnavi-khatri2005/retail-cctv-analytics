@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, ForeignKey, text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 import datetime
 
@@ -10,6 +10,24 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
+def auto_migrate_schema():
+    Base.metadata.create_all(bind=engine)
+    try:
+        with engine.begin() as conn:
+            res = conn.execute(text("PRAGMA table_info(events)"))
+            cols = [row[1] for row in res.fetchall()]
+            if cols: # table exists
+                if "action" not in cols:
+                    conn.execute(text("ALTER TABLE events ADD COLUMN action VARCHAR DEFAULT 'Movement'"))
+                if "risk" not in cols:
+                    conn.execute(text("ALTER TABLE events ADD COLUMN risk VARCHAR DEFAULT 'Low'"))
+                if "confidence" not in cols:
+                    conn.execute(text("ALTER TABLE events ADD COLUMN confidence FLOAT DEFAULT 0.95"))
+    except Exception as e:
+        print("Schema migration notice:", e)
+
+auto_migrate_schema()
 
 class User(Base):
     __tablename__ = "users"

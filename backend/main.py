@@ -149,12 +149,18 @@ def seed_prerecorded_cctv_dataset(db: Session):
 
     db.commit()
 
-# Run DB seeding on startup
-db_init = SessionLocal()
+# Run DB seeding on startup safely
 try:
-    seed_prerecorded_cctv_dataset(db_init)
-finally:
-    db_init.close()
+    db_init = SessionLocal()
+    try:
+        seed_prerecorded_cctv_dataset(db_init)
+    except Exception as e:
+        print("Database initialization notice:", e)
+        db_init.rollback()
+    finally:
+        db_init.close()
+except Exception as global_db_err:
+    print("Startup DB session notice:", global_db_err)
 
 # Dependency
 def get_db():
