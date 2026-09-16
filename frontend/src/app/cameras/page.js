@@ -2,7 +2,7 @@
 
 import { Video, Camera, Play, CheckCircle2, Shield, Activity, Radio } from "lucide-react";
 import Link from "next/link";
-import { defaultPrerecordedCams } from "../../data/cctvData";
+import { defaultPrerecordedCams } from "@/data/cctvData";
 
 export default function CamerasPage() {
   return (

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Search, Sparkles, AlertTriangle, Clock3, Play, X } from "lucide-react";
 import Link from "next/link";
-import { BACKEND_URL, staticEvents, quickSearchSuggestions } from "../../data/cctvData";
+import { BACKEND_URL, staticEvents, quickSearchSuggestions } from "@/data/cctvData";
 
 function RiskBadge({ risk }) {
   const styles = {

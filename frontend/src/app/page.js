@@ -31,15 +31,15 @@ import {
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import UploadModal from "../../components/UploadModal";
-import VideoPlayer from "../../components/VideoPlayer";
+import UploadModal from "@/components/UploadModal";
+import VideoPlayer from "@/components/VideoPlayer";
 import {
   BACKEND_URL,
   initialFootfallData,
   zoneData,
   defaultPrerecordedCams,
   staticEvents,
-} from "../../data/cctvData";
+} from "@/data/cctvData";
 
 function RiskBadge({ risk }) {
   const styles = {

@@ -2,7 +2,7 @@
 
 import { AlertTriangle, ShieldAlert, CheckCircle2, Clock3, Filter, Play } from "lucide-react";
 import Link from "next/link";
-import { staticEvents } from "../../data/cctvData";
+import { staticEvents } from "@/data/cctvData";
 
 function RiskBadge({ risk }) {
   const styles = {
