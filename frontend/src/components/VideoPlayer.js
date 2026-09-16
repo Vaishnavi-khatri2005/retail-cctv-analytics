@@ -12,7 +12,8 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   X,
-  Target
+  Target,
+  Video as VideoIcon
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 
@@ -36,9 +37,15 @@ export default function VideoPlayer({
   const [isMuted, setIsMuted] = useState(true);
   const [aiOverlay, setAiOverlay] = useState(showAiBoxes);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(30);
   const [timestamp, setTimestamp] = useState("");
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  const [hasVideoError, setHasVideoError] = useState(false);
+  
   const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  const simTimeRef = useRef(0);
 
   // Live wall clock timestamp
   useEffect(() => {
@@ -53,22 +60,35 @@ export default function VideoPlayer({
 
   // When activeEvidenceEvent changes, seek to start_time and start playback
   useEffect(() => {
-    if (activeEvidenceEvent && videoRef.current) {
+    if (activeEvidenceEvent) {
       const startTime = activeEvidenceEvent.start_time !== undefined ? activeEvidenceEvent.start_time : 0;
-      videoRef.current.currentTime = startTime;
-      videoRef.current.play().catch(() => {});
+      simTimeRef.current = startTime;
+      setCurrentTime(startTime);
+      if (videoRef.current && videoLoaded && !hasVideoError) {
+        videoRef.current.currentTime = startTime;
+        videoRef.current.play().catch(() => {});
+      }
       setIsPlaying(true);
     }
-  }, [activeEvidenceEvent]);
+  }, [activeEvidenceEvent, videoLoaded, hasVideoError]);
 
-  // Handle timeupdate to enforce evidence window clamping/looping if in evidence mode
+  // Reset video status when source changes
+  useEffect(() => {
+    setVideoLoaded(false);
+    setHasVideoError(false);
+    if (videoRef.current) {
+      videoRef.current.muted = true;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [src]);
+
+  // Handle timeupdate for HTML5 video
   const handleTimeUpdate = () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || hasVideoError) return;
     const curr = videoRef.current.currentTime;
     setCurrentTime(curr);
 
     if (activeEvidenceEvent && activeEvidenceEvent.end_time) {
-      // If reached the end of the evidence window, loop back to start_time
       if (curr >= activeEvidenceEvent.end_time) {
         videoRef.current.currentTime = activeEvidenceEvent.start_time || 0;
         videoRef.current.play().catch(() => {});
@@ -78,23 +98,181 @@ export default function VideoPlayer({
 
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
-      setDuration(videoRef.current.duration || 0);
-      if (activeEvidenceEvent) {
-        videoRef.current.currentTime = activeEvidenceEvent.start_time || 0;
-        videoRef.current.play().catch(() => {});
-      }
+      setDuration(videoRef.current.duration || 30);
+      setVideoLoaded(true);
+      setHasVideoError(false);
+      videoRef.current.muted = true;
+      videoRef.current.play().catch(() => {});
     }
   };
 
+  const handleVideoError = () => {
+    setHasVideoError(true);
+    setVideoLoaded(false);
+  };
+
+  // 🎥 High-Performance Live CCTV Surveillance Simulation Canvas Engine
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let startTime = Date.now();
+    let isNight = title.toLowerCase().includes("night") || tag.toLowerCase().includes("night");
+    let isVault = title.toLowerCase().includes("backroom") || title.toLowerCase().includes("safe");
+    let isCheckout = title.toLowerCase().includes("cashier") || title.toLowerCase().includes("queue");
+
+    const renderFrame = () => {
+      if (!canvas) return;
+      const w = canvas.width;
+      const h = canvas.height;
+      const elapsed = (Date.now() - startTime) / 1000;
+      
+      // Update simulated time if video is playing in canvas fallback mode
+      if (isPlaying) {
+        simTimeRef.current = (simTimeRef.current + 0.033) % 40;
+        if (activeEvidenceEvent && activeEvidenceEvent.end_time) {
+          if (simTimeRef.current >= activeEvidenceEvent.end_time || simTimeRef.current < (activeEvidenceEvent.start_time || 0)) {
+            simTimeRef.current = activeEvidenceEvent.start_time || 0;
+          }
+        }
+        if (hasVideoError || !videoLoaded) {
+          setCurrentTime(simTimeRef.current);
+        }
+      }
+
+      // 1. Background Store Floor & Walls
+      if (isNight) {
+        ctx.fillStyle = "#051510"; // Night Vision Dark Emerald
+      } else if (isVault) {
+        ctx.fillStyle = "#0b0f19"; // Security Vault Dark Blue
+      } else {
+        ctx.fillStyle = "#0f172a"; // Standard Supermarket Floor
+      }
+      ctx.fillRect(0, 0, w, h);
+
+      // Floor Perspective Tiles
+      ctx.strokeStyle = isNight ? "rgba(34, 197, 94, 0.15)" : "rgba(148, 163, 184, 0.08)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < w; i += 50) {
+        ctx.beginPath();
+        ctx.moveTo(i, h * 0.4);
+        ctx.lineTo(i * 1.4 - 100, h);
+        ctx.stroke();
+      }
+      for (let y = h * 0.4; y < h; y += 35) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      // Store Fixtures & Aisles
+      if (isCheckout) {
+        // Cashier Desks
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(w * 0.1, h * 0.55, w * 0.25, h * 0.3);
+        ctx.fillRect(w * 0.55, h * 0.55, w * 0.25, h * 0.3);
+        ctx.fillStyle = "#38bdf8";
+        ctx.fillRect(w * 0.12, h * 0.52, 40, 15);
+        ctx.fillRect(w * 0.57, h * 0.52, 40, 15);
+      } else if (isVault) {
+        // Restricted Vault Door & Red Boundary Tripwire
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(w * 0.7, h * 0.25, w * 0.25, h * 0.65);
+        ctx.strokeStyle = "#ef4444";
+        ctx.setLineDash([8, 4]);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(w * 0.6, 0);
+        ctx.lineTo(w * 0.6, h);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else {
+        // Supermarket Gondola Shelves Left & Right
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(0, h * 0.3, w * 0.22, h * 0.65);
+        ctx.fillRect(w * 0.78, h * 0.3, w * 0.22, h * 0.65);
+
+        // Product Color Blocks on Shelves
+        const colors = ["#ef4444", "#3b82f6", "#eab308", "#10b981", "#8b5cf6"];
+        for (let shelf = 0; shelf < 4; shelf++) {
+          for (let item = 0; item < 5; item++) {
+            ctx.fillStyle = colors[(shelf + item) % colors.length];
+            ctx.fillRect(10 + item * 14, h * 0.38 + shelf * 38, 10, 18);
+            ctx.fillRect(w - 75 + item * 14, h * 0.38 + shelf * 38, 10, 18);
+          }
+        }
+      }
+
+      // 2. Animated Pedestrians & Customers
+      const t = simTimeRef.current;
+      
+      // Person 1 (Shopper / Main Subject)
+      let p1X = (w * 0.35) + Math.sin(t * 0.4) * (w * 0.15);
+      let p1Y = (h * 0.48) + Math.cos(t * 0.3) * (h * 0.12);
+      
+      if (activeEvidenceEvent && activeEvidenceEvent.bbox_x) {
+        p1X = activeEvidenceEvent.bbox_x * w;
+        p1Y = activeEvidenceEvent.bbox_y * h;
+      }
+
+      // Draw Person 1 Body
+      ctx.fillStyle = isNight ? "#22c55e" : "#3b82f6";
+      ctx.beginPath();
+      ctx.arc(p1X + 20, p1Y + 12, 12, 0, Math.PI * 2); // Head
+      ctx.fill();
+      ctx.fillRect(p1X + 8, p1Y + 24, 24, 45); // Torso & Legs
+
+      // Person 2 (Secondary customer / Cashier)
+      let p2X = (w * 0.2) + Math.cos(t * 0.5) * 20;
+      let p2Y = (h * 0.55);
+      ctx.fillStyle = isNight ? "#16a34a" : "#64748b";
+      ctx.beginPath();
+      ctx.arc(p2X + 15, p2Y + 10, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(p2X + 5, p2Y + 20, 20, 40);
+
+      // 3. CCTV Camera Lens Scanlines & Noise Grain
+      ctx.fillStyle = isNight ? "rgba(34, 197, 94, 0.04)" : "rgba(255, 255, 255, 0.02)";
+      for (let sl = 0; sl < h; sl += 4) {
+        ctx.fillRect(0, sl, w, 1.5);
+      }
+
+      // Camera Crosshair Overlay in center
+      ctx.strokeStyle = isNight ? "rgba(34, 197, 94, 0.3)" : "rgba(255, 255, 255, 0.15)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(w / 2 - 20, h / 2);
+      ctx.lineTo(w / 2 + 20, h / 2);
+      ctx.moveTo(w / 2, h / 2 - 20);
+      ctx.lineTo(w / 2, h / 2 + 20);
+      ctx.stroke();
+
+      if (isPlaying) {
+        animationFrameRef.current = requestAnimationFrame(renderFrame);
+      }
+    };
+
+    renderFrame();
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isPlaying, title, tag, activeEvidenceEvent, hasVideoError, videoLoaded]);
+
   const togglePlay = () => {
-    if (videoRef.current) {
+    if (videoRef.current && videoLoaded && !hasVideoError) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        videoRef.current.play().catch(() => {});
       }
-      setIsPlaying(!isPlaying);
     }
+    setIsPlaying(!isPlaying);
   };
 
   const toggleMute = () => {
@@ -105,19 +283,21 @@ export default function VideoPlayer({
   };
 
   const toggleFullscreen = () => {
-    if (videoRef.current) {
-      if (videoRef.current.requestFullscreen) {
-        videoRef.current.requestFullscreen();
-      }
+    const el = canvasRef.current?.parentElement || videoRef.current;
+    if (el && el.requestFullscreen) {
+      el.requestFullscreen();
     }
   };
 
   const replayEvidenceWindow = () => {
-    if (videoRef.current && activeEvidenceEvent) {
-      videoRef.current.currentTime = activeEvidenceEvent.start_time || 0;
+    const startTime = activeEvidenceEvent?.start_time || 0;
+    simTimeRef.current = startTime;
+    setCurrentTime(startTime);
+    if (videoRef.current && videoLoaded && !hasVideoError) {
+      videoRef.current.currentTime = startTime;
       videoRef.current.play().catch(() => {});
-      setIsPlaying(true);
     }
+    setIsPlaying(true);
     if (onReplayEvidence) onReplayEvidence();
   };
 
@@ -158,8 +338,8 @@ export default function VideoPlayer({
             style={{
               left: `${Math.max(5, Math.min(80, (activeEvidenceEvent.bbox_x || 0.35) * 100))}%`,
               top: `${Math.max(8, Math.min(65, (activeEvidenceEvent.bbox_y || 0.3) * 100))}%`,
-              width: `${Math.max(12, Math.min(50, (activeEvidenceEvent.bbox_w || 0.2) * 100))}%`,
-              height: `${Math.max(15, Math.min(60, (activeEvidenceEvent.bbox_h || 0.45) * 100))}%`,
+              width: `${Math.max(14, Math.min(45, (activeEvidenceEvent.bbox_w || 0.2) * 100))}%`,
+              height: `${Math.max(20, Math.min(55, (activeEvidenceEvent.bbox_h || 0.45) * 100))}%`,
             }}
           >
             {/* Tag Badge */}
@@ -207,28 +387,35 @@ export default function VideoPlayer({
         </div>
       )}
 
-      {/* Video Element */}
-      {src ? (
-        <video 
-          ref={videoRef}
-          src={src} 
-          className="w-full h-full object-cover min-h-[340px]"
-          autoPlay
-          loop={!activeEvidenceEvent}
-          muted={isMuted}
-          playsInline
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
+      {/* 🎥 Video Container with Dynamic Canvas Fallback */}
+      <div className="relative w-full h-full min-h-[340px] flex items-center justify-center bg-slate-950">
+        {src && !hasVideoError && (
+          <video 
+            ref={videoRef}
+            src={src} 
+            className={`w-full h-full object-cover min-h-[340px] ${videoLoaded ? "block" : "hidden"}`}
+            autoPlay
+            loop={!activeEvidenceEvent}
+            muted={isMuted}
+            defaultMuted
+            playsInline
+            crossOrigin="anonymous"
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+            onError={handleVideoError}
+          />
+        )}
+        
+        {/* Animated CCTV Surveillance Simulation Canvas (renders active feed immediately) */}
+        <canvas
+          ref={canvasRef}
+          width={640}
+          height={360}
+          className={`w-full h-full object-cover min-h-[340px] ${videoLoaded && !hasVideoError ? "hidden" : "block"}`}
         />
-      ) : (
-        <div className="min-h-[340px] flex flex-col items-center justify-center p-8 text-center bg-slate-950/80">
-          <Shield size={36} className="text-slate-600 mb-3 animate-pulse" />
-          <p className="text-slate-400 font-medium text-sm">Waiting for live surveillance feed...</p>
-          <p className="text-xs text-slate-600 mt-1">Select a pre-recorded camera channel or connect your shop's RTSP IP camera.</p>
-        </div>
-      )}
+      </div>
 
       {/* 🚨 Evidence Verification HUD Banner */}
       {activeEvidenceEvent && (
@@ -340,4 +527,5 @@ export default function VideoPlayer({
     </div>
   );
 }
+
 
