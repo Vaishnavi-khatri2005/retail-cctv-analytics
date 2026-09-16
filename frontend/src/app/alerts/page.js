@@ -2,7 +2,8 @@
 
 import { AlertTriangle, ShieldAlert, CheckCircle2, Clock3, Filter, Play } from "lucide-react";
 import Link from "next/link";
-import { staticEvents } from "@/data/cctvData";
+import { useState, useEffect } from "react";
+import { BACKEND_URL, staticEvents } from "@/data/cctvData";
 
 function RiskBadge({ risk }) {
   const styles = {
@@ -18,9 +19,48 @@ function RiskBadge({ risk }) {
   );
 }
 
+function formatSeconds(sec) {
+  if (typeof sec !== "number" || isNaN(sec)) return "00:00";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
 export default function AlertsPage() {
-  const highRiskEvents = staticEvents.filter(e => e.risk === "High");
-  const mediumRiskEvents = staticEvents.filter(e => e.risk === "Medium");
+  const [events, setEvents] = useState(staticEvents);
+
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/api/events`)
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.length > 0) {
+          const mapped = data.map(ev => ({
+            id: ev.id,
+            video_id: ev.video_id,
+            type: ev.action || (ev.type === 'alert' ? 'Zone Alert' : 'Motion Detected'),
+            zone: ev.camera_name || 'Cam 1',
+            time: new Date(ev.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+            risk: ev.risk || (ev.type === 'alert' ? 'High' : 'Low'),
+            note: ev.description,
+            match_score: ev.confidence ? Math.round(ev.confidence * 100) : 95,
+            video_time_seconds: ev.video_time_seconds || 0,
+            start_time: ev.start_time || 0,
+            end_time: ev.end_time || 0,
+            track_id: ev.track_id || 1,
+            bbox_x: ev.bbox_x || 0.35,
+            bbox_y: ev.bbox_y || 0.3,
+            bbox_w: ev.bbox_w || 0.2,
+            bbox_h: ev.bbox_h || 0.45,
+            class_name: ev.class_name || "person"
+          }));
+          setEvents(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const highRiskEvents = events.filter(e => e.risk === "High");
+  const mediumRiskEvents = events.filter(e => e.risk === "Medium");
 
   return (
     <div className="px-5 py-8 lg:px-10 max-w-6xl mx-auto space-y-6">
@@ -33,7 +73,7 @@ export default function AlertsPage() {
           Security Alerts & Incident Log
         </h1>
         <p className="text-slate-500 text-sm mt-1">
-          Review high-priority boundary intrusions, loitering alerts, and store perimeter security triggers.
+          Review high-priority boundary intrusions, loitering alerts, and store perimeter security triggers with exact CCTV playback timestamps.
         </p>
       </header>
 
@@ -75,31 +115,36 @@ export default function AlertsPage() {
             <p className="text-xs text-slate-500">Filtered for High & Medium risk store events</p>
           </div>
           <span className="text-xs font-semibold px-3 py-1 bg-slate-100 text-slate-700 rounded-lg">
-            {staticEvents.length} Total Incidents
+            {events.length} Total Incidents
           </span>
         </div>
 
         <div className="divide-y divide-slate-100">
-          {staticEvents.map((event, i) => (
+          {events.map((event, i) => (
             <div key={event.id || i} className="flex flex-col gap-4 py-5 md:flex-row md:items-center hover:bg-slate-50/80 p-4 rounded-xl transition">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 border border-red-100">
                 <AlertTriangle size={24} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 flex-wrap">
                   <span className="font-bold text-slate-900 text-base">{event.type}</span>
                   <RiskBadge risk={event.risk} />
                   <span className="text-xs text-slate-400 font-medium">• {event.zone}</span>
+                  {event.video_time_seconds !== undefined && (
+                    <span className="text-[11px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded">
+                      Timestamp: {formatSeconds(event.video_time_seconds)}
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm text-slate-600 mt-1.5">{event.note}</p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 shrink-0">
                 <span className="text-xs text-slate-500 font-medium">{event.time}</span>
                 <Link 
-                  href={`/?cam=${event.video_id || 1}`}
-                  className="px-4 py-2 bg-slate-950 text-white rounded-xl text-xs font-semibold hover:bg-blue-600 transition flex items-center gap-1.5 shadow-sm"
+                  href={`/?cam=${event.video_id || 1}&evidence=${event.id}`}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
-                  <Play size={12} /> Inspect Feed
+                  <Play size={12} /> View Evidence
                 </Link>
               </div>
             </div>
@@ -109,3 +154,4 @@ export default function AlertsPage() {
     </div>
   );
 }
+

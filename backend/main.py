@@ -70,7 +70,7 @@ def seed_prerecorded_cctv_dataset(db: Session):
             with open(dummy_file, "wb") as f:
                 f.write(b"") # Placeholder stream file
 
-    # Populate Realistic Pre-recorded CCTV AI Events
+    # Populate Realistic Pre-recorded CCTV AI Events with exact video timestamps & bounding data
     demo_events = [
         {
             "video_id": 4,
@@ -80,7 +80,17 @@ def seed_prerecorded_cctv_dataset(db: Session):
             "camera_name": "Cam 4 (Electronics Shelf)",
             "risk": "High",
             "confidence": 0.96,
-            "minutes_ago": 15
+            "minutes_ago": 15,
+            "video_time_seconds": 14.5,
+            "start_time": 4.5,
+            "end_time": 24.5,
+            "track_id": 104,
+            "bbox_x": 0.45,
+            "bbox_y": 0.35,
+            "bbox_w": 0.18,
+            "bbox_h": 0.42,
+            "class_name": "prolonged_loitering_subject",
+            "frame_number": 362
         },
         {
             "video_id": 3,
@@ -90,7 +100,17 @@ def seed_prerecorded_cctv_dataset(db: Session):
             "camera_name": "Cam 3 (Staff Backroom)",
             "risk": "High",
             "confidence": 0.98,
-            "minutes_ago": 38
+            "minutes_ago": 38,
+            "video_time_seconds": 28.2,
+            "start_time": 18.2,
+            "end_time": 38.2,
+            "track_id": 102,
+            "bbox_x": 0.62,
+            "bbox_y": 0.40,
+            "bbox_w": 0.20,
+            "bbox_h": 0.45,
+            "class_name": "unauthorized_intruder",
+            "frame_number": 705
         },
         {
             "video_id": 2,
@@ -100,7 +120,17 @@ def seed_prerecorded_cctv_dataset(db: Session):
             "camera_name": "Cam 2 (Checkout Counter)",
             "risk": "Medium",
             "confidence": 0.91,
-            "minutes_ago": 62
+            "minutes_ago": 62,
+            "video_time_seconds": 8.6,
+            "start_time": 0.0,
+            "end_time": 18.6,
+            "track_id": 201,
+            "bbox_x": 0.32,
+            "bbox_y": 0.48,
+            "bbox_w": 0.15,
+            "bbox_h": 0.38,
+            "class_name": "queued_customer",
+            "frame_number": 215
         },
         {
             "video_id": 1,
@@ -110,7 +140,17 @@ def seed_prerecorded_cctv_dataset(db: Session):
             "camera_name": "Cam 1 (Main Aisle)",
             "risk": "Low",
             "confidence": 0.94,
-            "minutes_ago": 95
+            "minutes_ago": 95,
+            "video_time_seconds": 5.4,
+            "start_time": 0.0,
+            "end_time": 15.4,
+            "track_id": 305,
+            "bbox_x": 0.28,
+            "bbox_y": 0.30,
+            "bbox_w": 0.22,
+            "bbox_h": 0.46,
+            "class_name": "customer_group",
+            "frame_number": 135
         },
         {
             "video_id": 4,
@@ -120,7 +160,17 @@ def seed_prerecorded_cctv_dataset(db: Session):
             "camera_name": "Cam 4 (Electronics Shelf)",
             "risk": "Low",
             "confidence": 0.92,
-            "minutes_ago": 130
+            "minutes_ago": 130,
+            "video_time_seconds": 19.8,
+            "start_time": 9.8,
+            "end_time": 29.8,
+            "track_id": 108,
+            "bbox_x": 0.55,
+            "bbox_y": 0.42,
+            "bbox_w": 0.19,
+            "bbox_h": 0.40,
+            "class_name": "customer_browsing",
+            "frame_number": 495
         },
         {
             "video_id": 3,
@@ -130,7 +180,17 @@ def seed_prerecorded_cctv_dataset(db: Session):
             "camera_name": "Cam 3 (Staff Backroom)",
             "risk": "High",
             "confidence": 0.97,
-            "minutes_ago": 180
+            "minutes_ago": 180,
+            "video_time_seconds": 32.1,
+            "start_time": 22.1,
+            "end_time": 42.1,
+            "track_id": 110,
+            "bbox_x": 0.48,
+            "bbox_y": 0.36,
+            "bbox_w": 0.16,
+            "bbox_h": 0.44,
+            "class_name": "safe_perimeter_breach",
+            "frame_number": 802
         }
     ]
 
@@ -143,7 +203,17 @@ def seed_prerecorded_cctv_dataset(db: Session):
             camera_name=ev["camera_name"],
             risk=ev["risk"],
             confidence=ev["confidence"],
-            timestamp=now - datetime.timedelta(minutes=ev["minutes_ago"])
+            timestamp=now - datetime.timedelta(minutes=ev["minutes_ago"]),
+            video_time_seconds=ev.get("video_time_seconds", 0.0),
+            start_time=ev.get("start_time", 0.0),
+            end_time=ev.get("end_time", 10.0),
+            track_id=ev.get("track_id", 1),
+            bbox_x=ev.get("bbox_x", 0.3),
+            bbox_y=ev.get("bbox_y", 0.3),
+            bbox_w=ev.get("bbox_w", 0.2),
+            bbox_h=ev.get("bbox_h", 0.4),
+            class_name=ev.get("class_name", "person"),
+            frame_number=ev.get("frame_number", 0)
         )
         db.add(event_obj)
 
@@ -259,6 +329,16 @@ async def process_video(video_id: int, db: Session):
             risk_level = "High" if in_zone else "Low"
             conf = round(random.uniform(0.88, 0.98), 2)
             
+            v_time = round(current_time_sec, 2)
+            s_time = max(0.0, round(current_time_sec - 10.0, 2))
+            e_time = round(current_time_sec + 10.0, 2)
+            track_num = int((frame_count // 25) % 15) + 101
+            
+            bx = round(float(x) / float(frame_width), 4) if frame_width > 0 else 0.3
+            by = round(float(y) / float(frame_height), 4) if frame_height > 0 else 0.3
+            bw = round(float(w) / float(frame_width), 4) if frame_width > 0 else 0.2
+            bh = round(float(h) / float(frame_height), 4) if frame_height > 0 else 0.4
+
             db_event = Event(
                 video_id=video_id,
                 type=evt_type,
@@ -266,7 +346,17 @@ async def process_video(video_id: int, db: Session):
                 camera_name="Cam 1",
                 action=action_type,
                 risk=risk_level,
-                confidence=conf
+                confidence=conf,
+                video_time_seconds=v_time,
+                start_time=s_time,
+                end_time=e_time,
+                track_id=track_num,
+                bbox_x=bx,
+                bbox_y=by,
+                bbox_w=bw,
+                bbox_h=bh,
+                class_name="person_intruder" if in_zone else "customer",
+                frame_number=frame_count
             )
             db.add(db_event)
             db.commit()
@@ -474,7 +564,17 @@ def search_events_ai(body: SearchQuery, db: Session = Depends(get_db)):
                 "action": ev.action or "Movement",
                 "risk": ev.risk or ("High" if ev.type == "alert" else "Low"),
                 "confidence": ev.confidence or 0.95,
-                "match_score": match_percentage
+                "match_score": match_percentage,
+                "video_time_seconds": ev.video_time_seconds or 0.0,
+                "start_time": ev.start_time or 0.0,
+                "end_time": ev.end_time or 0.0,
+                "track_id": ev.track_id or 1,
+                "bbox_x": ev.bbox_x if ev.bbox_x is not None else 0.3,
+                "bbox_y": ev.bbox_y if ev.bbox_y is not None else 0.3,
+                "bbox_w": ev.bbox_w if ev.bbox_w is not None else 0.2,
+                "bbox_h": ev.bbox_h if ev.bbox_h is not None else 0.4,
+                "class_name": ev.class_name or "person",
+                "frame_number": ev.frame_number or 0
             })
 
     scored_results.sort(key=lambda x: x["match_score"], reverse=True)

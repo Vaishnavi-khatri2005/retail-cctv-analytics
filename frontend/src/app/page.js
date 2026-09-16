@@ -59,25 +59,54 @@ function RiskBadge({ risk }) {
 function HomeContent() {
   const searchParams = useSearchParams();
   const camParam = searchParams.get("cam");
+  const evidenceParam = searchParams.get("evidence");
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [eventsData, setEventsData] = useState(staticEvents);
   const [footfallData, setFootfallData] = useState(initialFootfallData);
   const [videos, setVideos] = useState(defaultPrerecordedCams.map(c => ({ id: c.id, filename: c.file, status: "completed" })));
   const [selectedVideo, setSelectedVideo] = useState({ id: 1, filename: "cam1_main_aisle_peak_hours.mp4", status: "completed" });
+  const [activeEvidenceEvent, setActiveEvidenceEvent] = useState(null);
   const [dailySummary, setDailySummary] = useState(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
 
-  // Sync selected camera with URL search query param if provided
+  // Sync selected camera and evidence with URL search query params
   useEffect(() => {
     if (camParam) {
       const parsedId = parseInt(camParam, 10);
       const matched = defaultPrerecordedCams.find(c => c.id === parsedId);
       if (matched) {
-        setSelectedVideo({ id: matched.id, filename: matched.file, status: "completed" });
+        setSelectedVideo({ id: matched.id, filename: matched.file, name: matched.name, videoUrl: matched.videoUrl, status: "completed" });
       }
     }
   }, [camParam]);
+
+  useEffect(() => {
+    if (evidenceParam && eventsData.length > 0) {
+      const parsedEvId = parseInt(evidenceParam, 10);
+      const matchedEv = eventsData.find(e => e.id === parsedEvId);
+      if (matchedEv) {
+        handleViewEvidence(matchedEv);
+      }
+    }
+  }, [evidenceParam, eventsData]);
+
+  const handleViewEvidence = (event) => {
+    if (!event) return;
+    const targetCamId = event.video_id || 1;
+    const matchedCam = defaultPrerecordedCams.find(c => c.id === targetCamId);
+    if (matchedCam) {
+      setSelectedVideo({
+        id: matchedCam.id,
+        filename: matchedCam.file,
+        name: matchedCam.name,
+        videoUrl: matchedCam.videoUrl,
+        status: "completed"
+      });
+    }
+    setActiveEvidenceEvent(event);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const fetchData = async () => {
     try {
@@ -98,7 +127,17 @@ function HomeContent() {
             time: new Date(ev.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
             risk: ev.risk || (ev.type === 'alert' ? 'High' : 'Low'),
             note: ev.description,
-            match_score: ev.confidence ? Math.round(ev.confidence * 100) : 95
+            match_score: ev.confidence ? Math.round(ev.confidence * 100) : 95,
+            video_time_seconds: ev.video_time_seconds !== undefined ? ev.video_time_seconds : 14.5,
+            start_time: ev.start_time !== undefined ? ev.start_time : Math.max(0, (ev.video_time_seconds || 14.5) - 10),
+            end_time: ev.end_time !== undefined ? ev.end_time : ((ev.video_time_seconds || 14.5) + 10),
+            track_id: ev.track_id || 1,
+            bbox_x: ev.bbox_x !== undefined ? ev.bbox_x : 0.35,
+            bbox_y: ev.bbox_y !== undefined ? ev.bbox_y : 0.3,
+            bbox_w: ev.bbox_w !== undefined ? ev.bbox_w : 0.2,
+            bbox_h: ev.bbox_h !== undefined ? ev.bbox_h : 0.45,
+            class_name: ev.class_name || "person",
+            frame_number: ev.frame_number || 0
           }));
           setEventsData(mappedEvents);
         }
@@ -110,7 +149,8 @@ function HomeContent() {
           setVideos(data);
           const completedVideos = data.filter(v => v.status === 'completed');
           if (completedVideos.length > 0 && !camParam) {
-            setSelectedVideo(completedVideos[0]);
+            const firstCam = defaultPrerecordedCams.find(c => c.id === completedVideos[0].id) || completedVideos[0];
+            setSelectedVideo(firstCam);
           }
         }
       }
@@ -395,7 +435,10 @@ function HomeContent() {
                 return (
                   <button
                     key={cam.id}
-                    onClick={() => setSelectedVideo({ id: cam.id, filename: cam.file, name: cam.name, videoUrl: cam.videoUrl, status: "completed" })}
+                    onClick={() => {
+                      setActiveEvidenceEvent(null);
+                      setSelectedVideo({ id: cam.id, filename: cam.file, name: cam.name, videoUrl: cam.videoUrl, status: "completed" });
+                    }}
                     className={`text-left p-3.5 rounded-xl border transition flex flex-col justify-between cursor-pointer ${
                       isSelected 
                         ? "border-blue-600 bg-blue-50 ring-2 ring-blue-500/20 shadow-sm" 
@@ -426,7 +469,9 @@ function HomeContent() {
           <article className="rounded-lg border border-slate-200 bg-slate-950 p-5 text-white shadow-lg overflow-hidden relative">
             <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-sm text-slate-300">Live Processed Feed</p>
+                <p className="text-sm text-slate-300">
+                  {activeEvidenceEvent ? "Evidence Verification Stream" : "Live Processed Feed"}
+                </p>
                 <h2 className="mt-1 text-xl font-semibold">
                    {selectedVideo ? (selectedVideo.name || selectedVideo.filename) : "Cam 1: Main Aisle"}
                 </h2>
@@ -438,7 +483,9 @@ function HomeContent() {
               <VideoPlayer 
                 src={selectedVideo?.videoUrl || (defaultPrerecordedCams.find(c => c.id === (selectedVideo?.id || 1))?.videoUrl)} 
                 title={selectedVideo ? (selectedVideo.name || selectedVideo.filename) : "Cam 1: Main Aisle"}
-                tag={defaultPrerecordedCams.find(c => c.id === (selectedVideo?.id || 1))?.tag || "Footfall"}
+                tag={activeEvidenceEvent ? `Event: ${activeEvidenceEvent.type}` : (defaultPrerecordedCams.find(c => c.id === (selectedVideo?.id || 1))?.tag || "Footfall")}
+                activeEvidenceEvent={activeEvidenceEvent}
+                onClearEvidence={() => setActiveEvidenceEvent(null)}
               />
             </div>
 
@@ -453,26 +500,57 @@ function HomeContent() {
 
           <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Recent Alerts</h2>
+              <div>
+                <h2 className="text-lg font-semibold">Recent Alerts</h2>
+                <p className="text-xs text-slate-400">Click &apos;View Evidence&apos; to seek video</p>
+              </div>
               <Link href="/alerts" className="text-xs font-semibold text-blue-600 hover:underline">
                 View All →
               </Link>
             </div>
             <div className="space-y-3">
-              {eventsData.slice(0, 3).map((event, idx) => (
-                <div key={idx} className="p-3 rounded-lg bg-slate-50 border border-slate-100 flex items-start gap-2.5">
-                  <div className="mt-0.5">
-                    {event.risk === "High" ? <AlertTriangle size={16} className="text-red-600" /> : <Clock3 size={16} className="text-slate-500" />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-900">{event.type}</span>
-                      <RiskBadge risk={event.risk} />
+              {eventsData.slice(0, 4).map((event, idx) => {
+                const isSelectedEv = activeEvidenceEvent && activeEvidenceEvent.id === event.id;
+                return (
+                  <div 
+                    key={idx} 
+                    className={`p-3.5 rounded-xl border transition flex flex-col gap-2 ${
+                      isSelectedEv 
+                        ? "bg-red-50/80 border-red-300 ring-2 ring-red-400/30" 
+                        : "bg-slate-50 border-slate-100 hover:border-slate-200"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className="mt-0.5">
+                        {event.risk === "High" ? <AlertTriangle size={16} className="text-red-600" /> : <Clock3 size={16} className="text-slate-500" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-900">{event.type}</span>
+                          <RiskBadge risk={event.risk} />
+                        </div>
+                        <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">{event.note}</p>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-slate-500 truncate mt-1">{event.note}</p>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 mt-1">
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {event.zone} • {event.time}
+                      </span>
+                      <button
+                        onClick={() => handleViewEvidence(event)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                          isSelectedEv
+                            ? "bg-red-600 text-white"
+                            : "bg-slate-900 hover:bg-red-600 text-white"
+                        }`}
+                      >
+                        <Play size={11} /> View Evidence
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </article>
         </aside>

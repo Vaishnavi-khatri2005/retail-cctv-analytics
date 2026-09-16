@@ -19,6 +19,13 @@ function RiskBadge({ risk }) {
   );
 }
 
+function formatSeconds(sec) {
+  if (typeof sec !== "number" || isNaN(sec)) return "00:00";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -52,7 +59,16 @@ export default function SearchPage() {
           time: new Date(ev.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
           risk: ev.risk || (ev.type === 'alert' ? 'High' : 'Low'),
           note: ev.description,
-          match_score: ev.match_score || 90
+          match_score: ev.match_score || 90,
+          video_time_seconds: ev.video_time_seconds || 0,
+          start_time: ev.start_time || 0,
+          end_time: ev.end_time || 0,
+          track_id: ev.track_id || 1,
+          bbox_x: ev.bbox_x || 0.35,
+          bbox_y: ev.bbox_y || 0.3,
+          bbox_w: ev.bbox_w || 0.2,
+          bbox_h: ev.bbox_h || 0.45,
+          class_name: ev.class_name || "person"
         }));
         setEventsData(mapped);
       } else {
@@ -66,7 +82,8 @@ export default function SearchPage() {
           (lowerQ.includes("backroom") && e.zone.toLowerCase().includes("backroom")) ||
           (lowerQ.includes("alert") && e.risk.toLowerCase().includes("high")) ||
           (lowerQ.includes("queue") && e.type.toLowerCase().includes("queue")) ||
-          (lowerQ.includes("loiter") && e.type.toLowerCase().includes("loiter"))
+          (lowerQ.includes("loiter") && e.type.toLowerCase().includes("loiter")) ||
+          (lowerQ.includes("theft") && (e.type.toLowerCase().includes("theft") || e.note.toLowerCase().includes("pocket")))
         );
         setSearchTotal(filtered.length);
         setEventsData(filtered);
@@ -167,17 +184,22 @@ export default function SearchPage() {
                         {event.match_score}% Match
                       </span>
                     )}
+                    {event.video_time_seconds !== undefined && (
+                      <span className="text-[11px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded">
+                        Timestamp: {formatSeconds(event.video_time_seconds)}
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1.5 text-sm text-slate-600">{event.note}</p>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-slate-500">
+                <div className="flex items-center gap-4 text-sm text-slate-500 shrink-0">
                   <span className="font-medium bg-slate-100 px-3 py-1 rounded-lg text-xs">{event.zone}</span>
                   <span className="text-xs">{event.time}</span>
                   <Link 
-                    href={`/?cam=${event.video_id || 1}`}
-                    className="inline-flex h-9 px-3.5 items-center gap-1.5 rounded-xl bg-slate-950 text-white hover:bg-blue-600 transition shadow-sm text-xs font-semibold" 
+                    href={`/?cam=${event.video_id || 1}&evidence=${event.id}`}
+                    className="inline-flex h-9 px-3.5 items-center gap-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white transition shadow-sm text-xs font-bold cursor-pointer" 
                   >
-                    <Play size={14} /> Play in Feed
+                    <Play size={13} /> View Evidence
                   </Link>
                 </div>
               </div>
