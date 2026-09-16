@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, status, B
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import os
+import sys
 import shutil
 import asyncio
 import random
@@ -10,7 +11,15 @@ import cv2
 from typing import List, Optional
 import datetime
 
-from models.database import SessionLocal, engine, Base, User, Video, Event
+# Ensure current directory is in sys.path
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if CURRENT_DIR not in sys.path:
+    sys.path.insert(0, CURRENT_DIR)
+
+try:
+    from models.database import SessionLocal, engine, Base, User, Video, Event
+except ImportError:
+    from backend.models.database import SessionLocal, engine, Base, User, Video, Event
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
