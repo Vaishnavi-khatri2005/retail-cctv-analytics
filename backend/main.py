@@ -8,6 +8,7 @@ import asyncio
 import random
 import re
 import cv2
+import subprocess
 from typing import List, Optional
 import datetime
 
@@ -35,83 +36,169 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "uploads"
-PROCESSED_DIR = "processed"
+UPLOAD_DIR = os.path.join(CURRENT_DIR, "uploads")
+PROCESSED_DIR = os.path.join(CURRENT_DIR, "processed")
+DATASET_DIR = os.path.join(CURRENT_DIR, "data", "sample_cctv")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
+os.makedirs(DATASET_DIR, exist_ok=True)
 
-# 🎥 Pre-recorded Sample CCTV Dataset Seeder
+def get_ffmpeg_exe():
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return shutil.which("ffmpeg") or "ffmpeg"
+
+def transcode_to_h264(input_path: str, output_path: str) -> bool:
+    ffmpeg_exe = get_ffmpeg_exe()
+    cmd = [
+        ffmpeg_exe, "-y",
+        "-i", input_path,
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart",
+        output_path
+    ]
+    try:
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return os.path.exists(output_path) and os.path.getsize(output_path) > 0
+    except Exception as e:
+        print(f"FFmpeg transcoding error: {e}")
+        return False
+
+# Synchronously process a video file using OpenCV and FFmpeg H.264 encoder
+def process_video_sync(video_id: int, file_path: str, processed_path: str) -> bool:
+    if not os.path.exists(file_path):
+        print(f"Error: Source file does not exist: {file_path}")
+        return False
+        
+    cap = cv2.VideoCapture(file_path)
+    if not cap.isOpened():
+        print(f"Error: OpenCV could not open {file_path}")
+        return False
+        
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    
+    if frame_width <= 0 or frame_height <= 0 or fps <= 0:
+        print(f"Error: Invalid dimensions or FPS for {file_path}")
+        cap.release()
+        return False
+        
+    temp_path = os.path.join(PROCESSED_DIR, f"temp_{video_id}_{os.path.basename(file_path)}")
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(temp_path, fourcc, fps, (frame_width, frame_height))
+    
+    if not out.isOpened():
+        print("Error: Could not open VideoWriter for temp file")
+        cap.release()
+        return False
+        
+    fgbg = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50, detectShadows=True)
+    zone_x_threshold = frame_width // 2
+    
+    frames_written = 0
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+            
+        fgmask = fgbg.apply(frame)
+        contours, _ = cv2.findContours(fgmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        for contour in contours:
+            if cv2.contourArea(contour) > 1500:
+                x, y, w, h = cv2.boundingRect(contour)
+                center_x = x + w // 2
+                
+                if center_x > zone_x_threshold:
+                    cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
+                    cv2.putText(frame, "RESTRICTED ZONE ALERT", (x, max(15, y-8)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
+                else:
+                    cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                    cv2.putText(frame, "Customer / Shopper", (x, max(15, y-8)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 2)
+                    
+        # Zone divider
+        cv2.line(frame, (zone_x_threshold, 0), (zone_x_threshold, frame_height), (255, 0, 0), 2)
+        cv2.putText(frame, "ZONE A (Shopping)", (15, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0), 2)
+        cv2.putText(frame, "ZONE B (Restricted)", (zone_x_threshold + 15, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 255), 2)
+        
+        out.write(frame)
+        frames_written += 1
+        
+    cap.release()
+    out.release()
+    
+    if frames_written == 0 or not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:
+        print("Error: No frames were written to temp video")
+        return False
+        
+    # Transcode to web-compatible H.264
+    success = transcode_to_h264(temp_path, processed_path)
+    if os.path.exists(temp_path):
+        os.remove(temp_path)
+        
+    if not success or not os.path.exists(processed_path) or os.path.getsize(processed_path) == 0:
+        print("Error: H.264 transcoding failed")
+        return False
+        
+    # Verify final video
+    verify_cap = cv2.VideoCapture(processed_path)
+    verified = verify_cap.isOpened() and int(verify_cap.get(cv2.CAP_PROP_FRAME_COUNT)) > 0
+    verify_cap.release()
+    
+    return verified
+
+# 🎥 Pre-recorded Sample CCTV Dataset Seeder with REAL Video Processing
 def seed_prerecorded_cctv_dataset(db: Session):
-    existing = db.query(Video).first()
-    if existing:
-        return # Dataset already initialized
-
     prerecorded_videos = [
-        {"id": 1, "filename": "cam1_main_aisle_peak_hours.mp4", "status": "completed"},
-        {"id": 2, "filename": "cam2_checkout_counter_queue.mp4", "status": "completed"},
-        {"id": 3, "filename": "cam3_restricted_staff_backroom.mp4", "status": "completed"},
-        {"id": 4, "filename": "cam4_premium_electronics_shelf.mp4", "status": "completed"},
+        {"id": 1, "filename": "cam1_main_aisle_peak_hours.mp4", "source": "dataset_sample_main_aisle.mp4"},
+        {"id": 2, "filename": "cam2_checkout_counter_queue.mp4", "source": "dataset_sample_checkout.mp4"},
+        {"id": 3, "filename": "cam3_restricted_staff_backroom.mp4", "source": "dataset_sample_restricted_backroom.mp4"},
+        {"id": 4, "filename": "cam4_premium_electronics_shelf.mp4", "source": "dataset_sample_jewelry_shelf.mp4"},
     ]
 
     now = datetime.datetime.utcnow()
 
     for v_info in prerecorded_videos:
-        video = Video(
-            id=v_info["id"],
-            filename=v_info["filename"],
-            upload_time=now - datetime.timedelta(hours=random.randint(1, 12)),
-            status=v_info["status"]
-        )
-        db.add(video)
-        
-        # Ensure dummy processed stream file exists for demo playback
-        dummy_file = f"{PROCESSED_DIR}/{video.id}_{video.filename}"
-        if not os.path.exists(dummy_file):
-            with open(dummy_file, "wb") as f:
-                f.write(b"") # Placeholder stream file
+        video = db.query(Video).filter(Video.id == v_info["id"]).first()
+        if not video:
+            video = Video(
+                id=v_info["id"],
+                filename=v_info["filename"],
+                upload_time=now - datetime.timedelta(hours=random.randint(1, 12)),
+                status="completed"
+            )
+            db.add(video)
+            db.commit()
 
-    # Populate Realistic Pre-recorded CCTV AI Events with exact video timestamps & bounding data
+        # Check if actual processed video exists and is non-empty
+        processed_file = os.path.join(PROCESSED_DIR, f"{video.id}_{video.filename}")
+        source_sample = os.path.join(DATASET_DIR, v_info["source"])
+        upload_dest = os.path.join(UPLOAD_DIR, video.filename)
+
+        needs_processing = not os.path.exists(processed_file) or os.path.getsize(processed_file) < 1000
+
+        if needs_processing and os.path.exists(source_sample):
+            print(f"Generating real processed CCTV video for Cam {video.id} from {v_info['source']}...")
+            shutil.copyfile(source_sample, upload_dest)
+            success = process_video_sync(video.id, upload_dest, processed_file)
+            if success:
+                video.status = "completed"
+                print(f"Cam {video.id} processed successfully ({os.path.getsize(processed_file)} bytes)")
+            else:
+                video.status = "error"
+            db.commit()
+
+    existing_event = db.query(Event).first()
+    if existing_event:
+        return # Events already initialized
+
     demo_events = [
-        {
-            "video_id": 4,
-            "type": "alert",
-            "action": "Loitering",
-            "description": "Person stayed near premium electronics shelf for 82 seconds without picking item.",
-            "camera_name": "Cam 4 (Electronics Shelf)",
-            "risk": "High",
-            "confidence": 0.96,
-            "minutes_ago": 15,
-            "video_time_seconds": 14.5,
-            "start_time": 4.5,
-            "end_time": 24.5,
-            "track_id": 104,
-            "bbox_x": 0.45,
-            "bbox_y": 0.35,
-            "bbox_w": 0.18,
-            "bbox_h": 0.42,
-            "class_name": "prolonged_loitering_subject",
-            "frame_number": 362
-        },
-        {
-            "video_id": 3,
-            "type": "alert",
-            "action": "Intrusion",
-            "description": "Customer crossed restricted boundary into Staff Only inventory backroom.",
-            "camera_name": "Cam 3 (Staff Backroom)",
-            "risk": "High",
-            "confidence": 0.98,
-            "minutes_ago": 38,
-            "video_time_seconds": 28.2,
-            "start_time": 18.2,
-            "end_time": 38.2,
-            "track_id": 102,
-            "bbox_x": 0.62,
-            "bbox_y": 0.40,
-            "bbox_w": 0.20,
-            "bbox_h": 0.45,
-            "class_name": "unauthorized_intruder",
-            "frame_number": 705
-        },
         {
             "video_id": 2,
             "type": "warning",
@@ -256,94 +343,124 @@ async def process_video(video_id: int, db: Session):
     video.status = "processing"
     db.commit()
     
-    file_path = f"{UPLOAD_DIR}/{video.filename}"
-    processed_path = f"{PROCESSED_DIR}/{video.id}_{video.filename}"
+    file_path = os.path.join(UPLOAD_DIR, video.filename)
+    if not os.path.exists(file_path):
+        # Check if file is in dataset directory
+        dataset_candidate = os.path.join(DATASET_DIR, video.filename)
+        if os.path.exists(dataset_candidate):
+            shutil.copyfile(dataset_candidate, file_path)
+        else:
+            print(f"Error: Video file {file_path} not found")
+            video.status = "error"
+            db.commit()
+            return
+            
+    processed_path = os.path.join(PROCESSED_DIR, f"{video.id}_{video.filename}")
+    temp_path = os.path.join(PROCESSED_DIR, f"temp_{video.id}_{video.filename}")
     
+    # 1. Verify Source Video
     cap = cv2.VideoCapture(file_path)
     if not cap.isOpened():
+        print(f"Error: OpenCV cannot open source {file_path}")
         video.status = "error"
         db.commit()
         return
 
-    # Video Writer setup
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    if not fps or fps == 0:
-        fps = 30
-        
-    fourcc = cv2.VideoWriter_fourcc(*'avc1') # Use H264 codec for web compatibility if possible, or mp4v
-    out = cv2.VideoWriter(processed_path, fourcc, fps, (frame_width, frame_height))
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    
+    if frame_width <= 0 or frame_height <= 0 or fps <= 0 or frame_count <= 0:
+        print(f"Error: Invalid video stream attributes (w={frame_width}, h={frame_height}, fps={fps}, count={frame_count})")
+        cap.release()
+        video.status = "error"
+        db.commit()
+        return
+
+    # 2. Setup OpenCV Video Writer for temporary annotated MP4
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(temp_path, fourcc, fps, (frame_width, frame_height))
+    if not out.isOpened():
+        print("Error: Could not open VideoWriter for temp video")
+        cap.release()
+        video.status = "error"
+        db.commit()
+        return
 
     fgbg = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50, detectShadows=True)
-    
-    frame_count = 0
-    last_event_time = -10
-    
-    # Define Zone A as the right half of the screen
     zone_x_threshold = frame_width // 2
+    
+    current_frame = 0
+    last_event_time = -10.0
+    frames_written = 0
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
             
-        frame_count += 1
-        current_time_sec = frame_count / fps
+        current_frame += 1
+        current_time_sec = current_frame / fps
         
         fgmask = fgbg.apply(frame)
         contours, _ = cv2.findContours(fgmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         has_motion = False
         in_zone = False
+        detected_bbox = None
         
         for contour in contours:
-            if cv2.contourArea(contour) > 2000:
+            area = cv2.contourArea(contour)
+            if area > 1200:
                 has_motion = True
                 x, y, w, h = cv2.boundingRect(contour)
-                
-                # Draw bounding box
-                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-                cv2.putText(frame, "Motion", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                
-                # Zone check (center of bounding box)
                 center_x = x + w // 2
+                
                 if center_x > zone_x_threshold:
                     in_zone = True
                     cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
-                    cv2.putText(frame, "Zone Alert", (x, y-25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                    cv2.putText(frame, "RESTRICTED INTRUSION ALERT", (x, max(15, y-8)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
+                else:
+                    cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                    cv2.putText(frame, "Customer / Shopper", (x, max(15, y-8)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 2)
                 
-        # Draw Zone Divider
+                if detected_bbox is None or area > 3000:
+                    detected_bbox = (x, y, w, h)
+                
+        # Draw Zone divider & HUD
         cv2.line(frame, (zone_x_threshold, 0), (zone_x_threshold, frame_height), (255, 0, 0), 2)
-        cv2.putText(frame, "Zone B (Restricted)", (zone_x_threshold + 10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
+        cv2.putText(frame, "ZONE A (Shopping)", (15, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0), 2)
+        cv2.putText(frame, "ZONE B (Restricted)", (zone_x_threshold + 15, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 255), 2)
         
-        # Write the annotated frame
         out.write(frame)
+        frames_written += 1
                 
-        if has_motion and (current_time_sec - last_event_time > 3):
+        if has_motion and (current_time_sec - last_event_time > 3.0) and detected_bbox:
             last_event_time = current_time_sec
+            x, y, w, h = detected_bbox
             
-            desc = "Customer entered Zone B (Restricted Area)" if in_zone else f"Customer movement detected in main aisle ({int(current_time_sec)}s)"
+            desc = f"Unauthorized entry into Restricted Zone B at {int(current_time_sec)}s" if in_zone else f"Shopper movement tracked in retail corridor at {int(current_time_sec)}s"
             evt_type = "alert" if in_zone else "info"
             action_type = "Intrusion" if in_zone else "Movement"
             risk_level = "High" if in_zone else "Low"
-            conf = round(random.uniform(0.88, 0.98), 2)
+            conf = round(random.uniform(0.92, 0.99), 2)
             
-            v_time = round(current_time_sec, 2)
-            s_time = max(0.0, round(current_time_sec - 10.0, 2))
-            e_time = round(current_time_sec + 10.0, 2)
-            track_num = int((frame_count // 25) % 15) + 101
+            v_time = round(current_time_sec, 1)
+            s_time = max(0.0, round(current_time_sec - 10.0, 1))
+            e_time = round(current_time_sec + 10.0, 1)
+            track_num = int((current_frame // 25) % 20) + 101
             
-            bx = round(float(x) / float(frame_width), 4) if frame_width > 0 else 0.3
-            by = round(float(y) / float(frame_height), 4) if frame_height > 0 else 0.3
-            bw = round(float(w) / float(frame_width), 4) if frame_width > 0 else 0.2
-            bh = round(float(h) / float(frame_height), 4) if frame_height > 0 else 0.4
+            bx = round(float(x) / float(frame_width), 4)
+            by = round(float(y) / float(frame_height), 4)
+            bw = round(float(w) / float(frame_width), 4)
+            bh = round(float(h) / float(frame_height), 4)
 
             db_event = Event(
                 video_id=video_id,
                 type=evt_type,
                 description=desc,
-                camera_name="Cam 1",
+                camera_name=f"Cam {video_id}",
                 action=action_type,
                 risk=risk_level,
                 confidence=conf,
@@ -355,17 +472,35 @@ async def process_video(video_id: int, db: Session):
                 bbox_y=by,
                 bbox_w=bw,
                 bbox_h=bh,
-                class_name="person_intruder" if in_zone else "customer",
-                frame_number=frame_count
+                class_name="unauthorized_intruder" if in_zone else "customer",
+                frame_number=current_frame
             )
             db.add(db_event)
             db.commit()
             
-            await asyncio.sleep(0.01)
-            
     cap.release()
     out.release()
-    video.status = "completed"
+    
+    # 3. Transcode to H.264 MP4 with FFmpeg for 100% HTML5 browser playback
+    if frames_written > 0 and os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
+        transcode_success = transcode_to_h264(temp_path, processed_path)
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+            
+        # 4. Verify output processed video
+        if transcode_success and os.path.exists(processed_path) and os.path.getsize(processed_path) > 0:
+            verify_cap = cv2.VideoCapture(processed_path)
+            if verify_cap.isOpened() and int(verify_cap.get(cv2.CAP_PROP_FRAME_COUNT)) > 0:
+                video.status = "completed"
+                print(f"Video {video_id} processed & verified successfully ({os.path.getsize(processed_path)} bytes)")
+            else:
+                video.status = "error"
+            verify_cap.release()
+        else:
+            video.status = "error"
+    else:
+        video.status = "error"
+        
     db.commit()
 
 
@@ -385,7 +520,7 @@ def login(user: UserCreate, db: Session = Depends(get_db)):
 
 @app.post("/api/videos/upload")
 async def upload_video(file: UploadFile = File(...), background_tasks: BackgroundTasks = None, db: Session = Depends(get_db)):
-    file_location = f"{UPLOAD_DIR}/{file.filename}"
+    file_location = os.path.join(UPLOAD_DIR, file.filename)
     with open(file_location, "wb+") as file_object:
         shutil.copyfileobj(file.file, file_object)
     
@@ -396,11 +531,10 @@ async def upload_video(file: UploadFile = File(...), background_tasks: Backgroun
     
     if background_tasks:
         background_tasks.add_task(process_video, new_video.id, db)
+    else:
+        await process_video(new_video.id, db)
     
     return {"info": f"file '{file.filename}' saved", "id": new_video.id}
-
-DATASET_DIR = os.path.join(os.path.dirname(__file__), "data", "sample_cctv")
-os.makedirs(DATASET_DIR, exist_ok=True)
 
 class DatasetRunRequest(BaseModel):
     sample_filename: Optional[str] = "dataset_sample_main_aisle.mp4"
@@ -437,14 +571,13 @@ async def run_analysis_on_dataset(req: DatasetRunRequest, db: Session = Depends(
     source_path = os.path.join(DATASET_DIR, sample_filename)
     
     if not os.path.exists(source_path):
-        # Fallback to any available dataset sample
         available = [f for f in os.listdir(DATASET_DIR) if f.endswith('.mp4')]
         if not available:
             raise HTTPException(status_code=404, detail="No dataset video files found in backend/data/sample_cctv")
         sample_filename = available[0]
         source_path = os.path.join(DATASET_DIR, sample_filename)
 
-    # Copy dataset video into uploads
+    # Copy real dataset video into uploads
     dest_filename = f"dataset_{int(datetime.datetime.utcnow().timestamp())}_{sample_filename}"
     dest_path = os.path.join(UPLOAD_DIR, dest_filename)
     shutil.copyfile(source_path, dest_path)
@@ -465,6 +598,7 @@ async def run_analysis_on_dataset(req: DatasetRunRequest, db: Session = Depends(
         "video_id": new_video.id,
         "filename": sample_filename,
         "status": new_video.status,
+        "stream_url": f"/api/videos/{new_video.id}/stream",
         "events_count": len(events),
         "events": events
     }
@@ -486,6 +620,7 @@ def get_prerecorded_cctv(db: Session = Depends(get_db)):
             "filename": v.filename,
             "status": v.status,
             "upload_time": v.upload_time,
+            "stream_url": f"/api/videos/{v.id}/stream",
             "event_count": len(events),
             "high_risk_alerts": sum(1 for e in events if e.risk == "High"),
             "camera": f"Cam {v.id}"
@@ -495,14 +630,26 @@ def get_prerecorded_cctv(db: Session = Depends(get_db)):
 @app.get("/api/videos/{video_id}/stream")
 def stream_video(video_id: int, db: Session = Depends(get_db)):
     video = db.query(Video).filter(Video.id == video_id).first()
-    if not video or video.status != "completed":
-        raise HTTPException(status_code=404, detail="Video not found or processing")
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
     
-    file_path = f"{PROCESSED_DIR}/{video.id}_{video.filename}"
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Processed video file not found")
+    file_path = os.path.join(PROCESSED_DIR, f"{video.id}_{video.filename}")
+    if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+        # Fallback to source in uploads if present
+        upload_path = os.path.join(UPLOAD_DIR, video.filename)
+        if os.path.exists(upload_path) and os.path.getsize(upload_path) > 0:
+            file_path = upload_path
+        else:
+            raise HTTPException(status_code=404, detail="Processed video file not found or empty")
         
-    return FileResponse(file_path, media_type="video/mp4")
+    return FileResponse(
+        file_path, 
+        media_type="video/mp4",
+        headers={
+            "Accept-Ranges": "bytes",
+            "Content-Disposition": "inline"
+        }
+    )
 
 @app.get("/api/events")
 def get_events(limit: int = 50, db: Session = Depends(get_db)):

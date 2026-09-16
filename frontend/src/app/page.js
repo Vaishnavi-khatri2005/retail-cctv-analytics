@@ -65,7 +65,13 @@ function HomeContent() {
   const [eventsData, setEventsData] = useState(staticEvents);
   const [footfallData, setFootfallData] = useState(initialFootfallData);
   const [videos, setVideos] = useState(defaultPrerecordedCams.map(c => ({ id: c.id, filename: c.file, status: "completed" })));
-  const [selectedVideo, setSelectedVideo] = useState({ id: 1, filename: "cam1_main_aisle_peak_hours.mp4", status: "completed" });
+  const [selectedVideo, setSelectedVideo] = useState({ 
+    id: 1, 
+    filename: "cam1_main_aisle_peak_hours.mp4", 
+    name: "Cam 1: Supermarket Main Aisle", 
+    videoUrl: `${BACKEND_URL}/api/videos/1/stream`, 
+    status: "completed" 
+  });
   const [activeEvidenceEvent, setActiveEvidenceEvent] = useState(null);
   const [dailySummary, setDailySummary] = useState(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
@@ -76,7 +82,13 @@ function HomeContent() {
       const parsedId = parseInt(camParam, 10);
       const matched = defaultPrerecordedCams.find(c => c.id === parsedId);
       if (matched) {
-        setSelectedVideo({ id: matched.id, filename: matched.file, name: matched.name, videoUrl: matched.videoUrl, status: "completed" });
+        setSelectedVideo({ 
+          id: matched.id, 
+          filename: matched.file, 
+          name: matched.name, 
+          videoUrl: matched.videoUrl || `${BACKEND_URL}/api/videos/${matched.id}/stream`, 
+          status: "completed" 
+        });
       }
     }
   }, [camParam]);
@@ -100,7 +112,15 @@ function HomeContent() {
         id: matchedCam.id,
         filename: matchedCam.file,
         name: matchedCam.name,
-        videoUrl: matchedCam.videoUrl,
+        videoUrl: matchedCam.videoUrl || `${BACKEND_URL}/api/videos/${matchedCam.id}/stream`,
+        status: "completed"
+      });
+    } else {
+      setSelectedVideo({
+        id: targetCamId,
+        filename: `Camera ${targetCamId}`,
+        name: `Camera ${targetCamId}`,
+        videoUrl: `${BACKEND_URL}/api/videos/${targetCamId}/stream`,
         status: "completed"
       });
     }
@@ -146,9 +166,13 @@ function HomeContent() {
       if (videosRes && videosRes.ok) {
         const data = await videosRes.json();
         if (data && data.length > 0) {
-          setVideos(data);
-          const completedVideos = data.filter(v => v.status === 'completed');
-          if (completedVideos.length > 0 && !camParam) {
+          const mappedVideos = data.map(v => ({
+            ...v,
+            videoUrl: `${BACKEND_URL}/api/videos/${v.id}/stream`
+          }));
+          setVideos(mappedVideos);
+          const completedVideos = mappedVideos.filter(v => v.status === 'completed');
+          if (completedVideos.length > 0 && !camParam && !selectedVideo) {
             const firstCam = defaultPrerecordedCams.find(c => c.id === completedVideos[0].id) || completedVideos[0];
             setSelectedVideo(firstCam);
           }
@@ -176,6 +200,8 @@ function HomeContent() {
       setSelectedVideo({
         id: data.video_id,
         filename: data.filename || "dataset_sample_main_aisle.mp4",
+        name: data.filename || "Dataset Sample Analysis",
+        videoUrl: data.stream_url || `${BACKEND_URL}/api/videos/${data.video_id}/stream`,
         status: "completed"
       });
     }
