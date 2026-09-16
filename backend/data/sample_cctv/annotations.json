@@ -1,0 +1,22 @@
+{
+  "dataset_sample_main_aisle.mp4": {
+    "scenario": "Main Aisle",
+    "frames": 200,
+    "annotations_sample_count": 200
+  },
+  "dataset_sample_checkout.mp4": {
+    "scenario": "Checkout Counter",
+    "frames": 600,
+    "annotations_sample_count": 600
+  },
+  "dataset_sample_restricted_backroom.mp4": {
+    "scenario": "Restricted Backroom",
+    "frames": 200,
+    "annotations_sample_count": 200
+  },
+  "dataset_sample_jewelry_shelf.mp4": {
+    "scenario": "Jewelry Shelf",
+    "frames": 200,
+    "annotations_sample_count": 200
+  }
+}

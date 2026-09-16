@@ -309,6 +309,76 @@ async def upload_video(file: UploadFile = File(...), background_tasks: Backgroun
     
     return {"info": f"file '{file.filename}' saved", "id": new_video.id}
 
+DATASET_DIR = os.path.join(os.path.dirname(__file__), "data", "sample_cctv")
+os.makedirs(DATASET_DIR, exist_ok=True)
+
+class DatasetRunRequest(BaseModel):
+    sample_filename: Optional[str] = "dataset_sample_main_aisle.mp4"
+
+@app.get("/api/dataset/samples")
+def get_dataset_samples():
+    """Lists actual retail CCTV dataset files available for computer vision pipeline processing."""
+    if not os.path.exists(DATASET_DIR):
+        return {"samples": []}
+    
+    files = [f for f in os.listdir(DATASET_DIR) if f.endswith(('.mp4', '.avi', '.mov'))]
+    sample_info = []
+    labels_map = {
+        "dataset_sample_main_aisle.mp4": "Main Aisle Customer Traffic",
+        "dataset_sample_checkout.mp4": "Cashier Checkout Queue",
+        "dataset_sample_restricted_backroom.mp4": "Restricted Backroom Intrusion",
+        "dataset_sample_jewelry_shelf.mp4": "Jewelry Showcase Dwell & Loitering"
+    }
+    
+    for f in files:
+        f_path = os.path.join(DATASET_DIR, f)
+        sample_info.append({
+            "filename": f,
+            "title": labels_map.get(f, f.replace("_", " ").replace(".mp4", "").title()),
+            "size_kb": round(os.path.getsize(f_path) / 1024, 1)
+        })
+        
+    return {"total": len(sample_info), "samples": sample_info}
+
+@app.post("/api/dataset/run-analysis")
+async def run_analysis_on_dataset(req: DatasetRunRequest, db: Session = Depends(get_db)):
+    """Loads actual video data from the integrated dataset and executes the CV pipeline."""
+    sample_filename = req.sample_filename or "dataset_sample_main_aisle.mp4"
+    source_path = os.path.join(DATASET_DIR, sample_filename)
+    
+    if not os.path.exists(source_path):
+        # Fallback to any available dataset sample
+        available = [f for f in os.listdir(DATASET_DIR) if f.endswith('.mp4')]
+        if not available:
+            raise HTTPException(status_code=404, detail="No dataset video files found in backend/data/sample_cctv")
+        sample_filename = available[0]
+        source_path = os.path.join(DATASET_DIR, sample_filename)
+
+    # Copy dataset video into uploads
+    dest_filename = f"dataset_{int(datetime.datetime.utcnow().timestamp())}_{sample_filename}"
+    dest_path = os.path.join(UPLOAD_DIR, dest_filename)
+    shutil.copyfile(source_path, dest_path)
+
+    new_video = Video(filename=dest_filename, status="processing")
+    db.add(new_video)
+    db.commit()
+    db.refresh(new_video)
+
+    # Run computer vision pipeline on actual dataset footage
+    await process_video(new_video.id, db)
+    db.refresh(new_video)
+
+    events = db.query(Event).filter(Event.video_id == new_video.id).all()
+
+    return {
+        "message": "Dataset sample processed successfully by computer-vision pipeline",
+        "video_id": new_video.id,
+        "filename": sample_filename,
+        "status": new_video.status,
+        "events_count": len(events),
+        "events": events
+    }
+
 @app.get("/api/videos")
 def get_videos(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     videos = db.query(Video).order_by(Video.id.desc()).offset(skip).limit(limit).all()

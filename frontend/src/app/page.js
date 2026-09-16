@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   Sparkles,
   Upload,
+  Database,
   Users,
   Video as VideoIcon,
   X,
@@ -129,6 +130,17 @@ function HomeContent() {
     }
   };
 
+  const handleAnalysisComplete = (data) => {
+    fetchData();
+    if (data && data.video_id) {
+      setSelectedVideo({
+        id: data.video_id,
+        filename: data.filename || "dataset_sample_main_aisle.mp4",
+        status: "completed"
+      });
+    }
+  };
+
   const fetchAIDailyReport = async () => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/summary/daily`).catch(() => null);
@@ -207,6 +219,13 @@ function HomeContent() {
         </div>
       )}
 
+      {/* CCTV Upload & Dataset Analysis Modal */}
+      <UploadModal 
+        isOpen={isUploadOpen} 
+        onClose={() => setIsUploadOpen(false)} 
+        onAnalysisComplete={handleAnalysisComplete}
+      />
+
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between lg:px-8">
           <div>
@@ -218,17 +237,24 @@ function HomeContent() {
           <div className="flex flex-wrap gap-2">
             <button 
               onClick={fetchAIDailyReport}
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm cursor-pointer"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm cursor-pointer"
             >
-              <Sparkles size={17} className="text-blue-600" />
+              <Sparkles size={16} className="text-blue-600" />
               AI Daily Brief
             </button>
             <button 
               onClick={() => setIsUploadOpen(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800 transition shadow-md cursor-pointer"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-blue-600 bg-blue-50 px-3.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition shadow-sm cursor-pointer"
             >
-              <Upload size={17} />
-              Upload Video
+              <Database size={16} />
+              Use Sample Dataset
+            </button>
+            <button 
+              onClick={() => setIsUploadOpen(true)}
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-slate-950 px-3.5 text-sm font-semibold text-white hover:bg-slate-800 transition shadow-md cursor-pointer"
+            >
+              <Upload size={16} />
+              Upload CCTV
             </button>
           </div>
         </div>
