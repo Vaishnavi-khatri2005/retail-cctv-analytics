@@ -15,7 +15,7 @@ import {
   Target,
   Video as VideoIcon
 } from "lucide-react";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 
 function formatSeconds(sec) {
   if (typeof sec !== "number" || isNaN(sec)) return "00:00";
@@ -25,7 +25,7 @@ function formatSeconds(sec) {
 }
 
 export default function VideoPlayer({ 
-  src, 
+  src = "/videos/cam1.mp4", 
   title = "Live Camera Feed",
   tag = "AI Monitored",
   showAiBoxes = true,
@@ -37,15 +37,9 @@ export default function VideoPlayer({
   const [isMuted, setIsMuted] = useState(true);
   const [aiOverlay, setAiOverlay] = useState(showAiBoxes);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(30);
+  const [duration, setDuration] = useState(35);
   const [timestamp, setTimestamp] = useState("");
-  const [videoLoaded, setVideoLoaded] = useState(false);
-  const [hasVideoError, setHasVideoError] = useState(false);
-  
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const animationFrameRef = useRef(null);
-  const simTimeRef = useRef(0);
 
   // Live wall clock timestamp
   useEffect(() => {
@@ -58,38 +52,27 @@ export default function VideoPlayer({
     return () => clearInterval(timer);
   }, []);
 
-  // When activeEvidenceEvent changes, seek to start_time and start playback
+  // When source or activeEvidenceEvent changes, auto play
   useEffect(() => {
-    if (activeEvidenceEvent) {
-      const startTime = activeEvidenceEvent.start_time !== undefined ? activeEvidenceEvent.start_time : 0;
-      simTimeRef.current = startTime;
-      setCurrentTime(startTime);
-      if (videoRef.current && videoLoaded && !hasVideoError) {
-        videoRef.current.currentTime = startTime;
-        videoRef.current.play().catch(() => {});
-      }
-      setIsPlaying(true);
-    }
-  }, [activeEvidenceEvent, videoLoaded, hasVideoError]);
-
-  // Reset video status when source changes
-  useEffect(() => {
-    setVideoLoaded(false);
-    setHasVideoError(false);
     if (videoRef.current) {
       videoRef.current.muted = true;
+      if (activeEvidenceEvent) {
+        const startTime = activeEvidenceEvent.start_time !== undefined ? activeEvidenceEvent.start_time : 0;
+        videoRef.current.currentTime = startTime;
+      }
       videoRef.current.play().catch(() => {});
+      setIsPlaying(true);
     }
-  }, [src]);
+  }, [src, activeEvidenceEvent]);
 
-  // Handle timeupdate for HTML5 video
+  // Handle video timeupdate and evidence looping
   const handleTimeUpdate = () => {
-    if (!videoRef.current || hasVideoError) return;
+    if (!videoRef.current) return;
     const curr = videoRef.current.currentTime;
     setCurrentTime(curr);
 
     if (activeEvidenceEvent && activeEvidenceEvent.end_time) {
-      if (curr >= activeEvidenceEvent.end_time) {
+      if (curr >= activeEvidenceEvent.end_time || curr < (activeEvidenceEvent.start_time || 0)) {
         videoRef.current.currentTime = activeEvidenceEvent.start_time || 0;
         videoRef.current.play().catch(() => {});
       }
@@ -98,181 +81,24 @@ export default function VideoPlayer({
 
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
-      setDuration(videoRef.current.duration || 30);
-      setVideoLoaded(true);
-      setHasVideoError(false);
+      setDuration(videoRef.current.duration || 35);
       videoRef.current.muted = true;
+      if (activeEvidenceEvent) {
+        videoRef.current.currentTime = activeEvidenceEvent.start_time || 0;
+      }
       videoRef.current.play().catch(() => {});
     }
   };
 
-  const handleVideoError = () => {
-    setHasVideoError(true);
-    setVideoLoaded(false);
-  };
-
-  // 🎥 High-Performance Live CCTV Surveillance Simulation Canvas Engine
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let startTime = Date.now();
-    let isNight = title.toLowerCase().includes("night") || tag.toLowerCase().includes("night");
-    let isVault = title.toLowerCase().includes("backroom") || title.toLowerCase().includes("safe");
-    let isCheckout = title.toLowerCase().includes("cashier") || title.toLowerCase().includes("queue");
-
-    const renderFrame = () => {
-      if (!canvas) return;
-      const w = canvas.width;
-      const h = canvas.height;
-      const elapsed = (Date.now() - startTime) / 1000;
-      
-      // Update simulated time if video is playing in canvas fallback mode
-      if (isPlaying) {
-        simTimeRef.current = (simTimeRef.current + 0.033) % 40;
-        if (activeEvidenceEvent && activeEvidenceEvent.end_time) {
-          if (simTimeRef.current >= activeEvidenceEvent.end_time || simTimeRef.current < (activeEvidenceEvent.start_time || 0)) {
-            simTimeRef.current = activeEvidenceEvent.start_time || 0;
-          }
-        }
-        if (hasVideoError || !videoLoaded) {
-          setCurrentTime(simTimeRef.current);
-        }
-      }
-
-      // 1. Background Store Floor & Walls
-      if (isNight) {
-        ctx.fillStyle = "#051510"; // Night Vision Dark Emerald
-      } else if (isVault) {
-        ctx.fillStyle = "#0b0f19"; // Security Vault Dark Blue
-      } else {
-        ctx.fillStyle = "#0f172a"; // Standard Supermarket Floor
-      }
-      ctx.fillRect(0, 0, w, h);
-
-      // Floor Perspective Tiles
-      ctx.strokeStyle = isNight ? "rgba(34, 197, 94, 0.15)" : "rgba(148, 163, 184, 0.08)";
-      ctx.lineWidth = 1;
-      for (let i = 0; i < w; i += 50) {
-        ctx.beginPath();
-        ctx.moveTo(i, h * 0.4);
-        ctx.lineTo(i * 1.4 - 100, h);
-        ctx.stroke();
-      }
-      for (let y = h * 0.4; y < h; y += 35) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
-        ctx.stroke();
-      }
-
-      // Store Fixtures & Aisles
-      if (isCheckout) {
-        // Cashier Desks
-        ctx.fillStyle = "#1e293b";
-        ctx.fillRect(w * 0.1, h * 0.55, w * 0.25, h * 0.3);
-        ctx.fillRect(w * 0.55, h * 0.55, w * 0.25, h * 0.3);
-        ctx.fillStyle = "#38bdf8";
-        ctx.fillRect(w * 0.12, h * 0.52, 40, 15);
-        ctx.fillRect(w * 0.57, h * 0.52, 40, 15);
-      } else if (isVault) {
-        // Restricted Vault Door & Red Boundary Tripwire
-        ctx.fillStyle = "#1e293b";
-        ctx.fillRect(w * 0.7, h * 0.25, w * 0.25, h * 0.65);
-        ctx.strokeStyle = "#ef4444";
-        ctx.setLineDash([8, 4]);
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(w * 0.6, 0);
-        ctx.lineTo(w * 0.6, h);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      } else {
-        // Supermarket Gondola Shelves Left & Right
-        ctx.fillStyle = "#1e293b";
-        ctx.fillRect(0, h * 0.3, w * 0.22, h * 0.65);
-        ctx.fillRect(w * 0.78, h * 0.3, w * 0.22, h * 0.65);
-
-        // Product Color Blocks on Shelves
-        const colors = ["#ef4444", "#3b82f6", "#eab308", "#10b981", "#8b5cf6"];
-        for (let shelf = 0; shelf < 4; shelf++) {
-          for (let item = 0; item < 5; item++) {
-            ctx.fillStyle = colors[(shelf + item) % colors.length];
-            ctx.fillRect(10 + item * 14, h * 0.38 + shelf * 38, 10, 18);
-            ctx.fillRect(w - 75 + item * 14, h * 0.38 + shelf * 38, 10, 18);
-          }
-        }
-      }
-
-      // 2. Animated Pedestrians & Customers
-      const t = simTimeRef.current;
-      
-      // Person 1 (Shopper / Main Subject)
-      let p1X = (w * 0.35) + Math.sin(t * 0.4) * (w * 0.15);
-      let p1Y = (h * 0.48) + Math.cos(t * 0.3) * (h * 0.12);
-      
-      if (activeEvidenceEvent && activeEvidenceEvent.bbox_x) {
-        p1X = activeEvidenceEvent.bbox_x * w;
-        p1Y = activeEvidenceEvent.bbox_y * h;
-      }
-
-      // Draw Person 1 Body
-      ctx.fillStyle = isNight ? "#22c55e" : "#3b82f6";
-      ctx.beginPath();
-      ctx.arc(p1X + 20, p1Y + 12, 12, 0, Math.PI * 2); // Head
-      ctx.fill();
-      ctx.fillRect(p1X + 8, p1Y + 24, 24, 45); // Torso & Legs
-
-      // Person 2 (Secondary customer / Cashier)
-      let p2X = (w * 0.2) + Math.cos(t * 0.5) * 20;
-      let p2Y = (h * 0.55);
-      ctx.fillStyle = isNight ? "#16a34a" : "#64748b";
-      ctx.beginPath();
-      ctx.arc(p2X + 15, p2Y + 10, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillRect(p2X + 5, p2Y + 20, 20, 40);
-
-      // 3. CCTV Camera Lens Scanlines & Noise Grain
-      ctx.fillStyle = isNight ? "rgba(34, 197, 94, 0.04)" : "rgba(255, 255, 255, 0.02)";
-      for (let sl = 0; sl < h; sl += 4) {
-        ctx.fillRect(0, sl, w, 1.5);
-      }
-
-      // Camera Crosshair Overlay in center
-      ctx.strokeStyle = isNight ? "rgba(34, 197, 94, 0.3)" : "rgba(255, 255, 255, 0.15)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(w / 2 - 20, h / 2);
-      ctx.lineTo(w / 2 + 20, h / 2);
-      ctx.moveTo(w / 2, h / 2 - 20);
-      ctx.lineTo(w / 2, h / 2 + 20);
-      ctx.stroke();
-
-      if (isPlaying) {
-        animationFrameRef.current = requestAnimationFrame(renderFrame);
-      }
-    };
-
-    renderFrame();
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [isPlaying, title, tag, activeEvidenceEvent, hasVideoError, videoLoaded]);
-
   const togglePlay = () => {
-    if (videoRef.current && videoLoaded && !hasVideoError) {
+    if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
         videoRef.current.play().catch(() => {});
       }
+      setIsPlaying(!isPlaying);
     }
-    setIsPlaying(!isPlaying);
   };
 
   const toggleMute = () => {
@@ -283,23 +109,39 @@ export default function VideoPlayer({
   };
 
   const toggleFullscreen = () => {
-    const el = canvasRef.current?.parentElement || videoRef.current;
-    if (el && el.requestFullscreen) {
-      el.requestFullscreen();
+    if (videoRef.current?.parentElement) {
+      if (videoRef.current.parentElement.requestFullscreen) {
+        videoRef.current.parentElement.requestFullscreen();
+      }
     }
   };
 
   const replayEvidenceWindow = () => {
-    const startTime = activeEvidenceEvent?.start_time || 0;
-    simTimeRef.current = startTime;
-    setCurrentTime(startTime);
-    if (videoRef.current && videoLoaded && !hasVideoError) {
+    if (videoRef.current && activeEvidenceEvent) {
+      const startTime = activeEvidenceEvent.start_time || 0;
       videoRef.current.currentTime = startTime;
       videoRef.current.play().catch(() => {});
+      setIsPlaying(true);
     }
-    setIsPlaying(true);
     if (onReplayEvidence) onReplayEvidence();
   };
+
+  const handleSeek = (e) => {
+    if (!videoRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos = (e.clientX - rect.left) / rect.width;
+    const newTime = pos * duration;
+    videoRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
+
+  // Dynamic moving bounding box coordinates relative to current video time
+  const dynamicBoxX = activeEvidenceEvent 
+    ? (activeEvidenceEvent.bbox_x || 0.35) 
+    : 0.35 + Math.sin(currentTime * 0.6) * 0.18;
+  const dynamicBoxY = activeEvidenceEvent 
+    ? (activeEvidenceEvent.bbox_y || 0.32) 
+    : 0.38 + Math.cos(currentTime * 0.5) * 0.08;
 
   return (
     <div className="w-full flex-1 min-h-[340px] bg-slate-950 rounded-2xl flex flex-col justify-center border border-slate-800 relative overflow-hidden group shadow-2xl">
@@ -325,43 +167,43 @@ export default function VideoPlayer({
       </div>
 
       {/* 🎯 Real Dynamic AI Detection Bounding Box Overlay */}
-      {aiOverlay && isPlaying && activeEvidenceEvent && (
+      {aiOverlay && isPlaying && (
         <div className="absolute inset-0 z-10 pointer-events-none">
           <div 
-            className={`absolute border-2 transition-all duration-150 ${
-              activeEvidenceEvent.risk === "High" 
-                ? "border-red-500 bg-red-500/15 shadow-[0_0_15px_rgba(239,68,68,0.5)]" 
-                : activeEvidenceEvent.risk === "Medium"
-                ? "border-amber-400 bg-amber-400/15 shadow-[0_0_15px_rgba(245,158,11,0.5)]"
+            className={`absolute border-2 transition-all duration-75 ${
+              activeEvidenceEvent
+                ? activeEvidenceEvent.risk === "High" 
+                  ? "border-red-500 bg-red-500/15 shadow-[0_0_15px_rgba(239,68,68,0.5)]" 
+                  : "border-amber-400 bg-amber-400/15 shadow-[0_0_15px_rgba(245,158,11,0.5)]"
                 : "border-emerald-400 bg-emerald-500/15 shadow-[0_0_15px_rgba(16,185,129,0.5)]"
             } rounded-xs`}
             style={{
-              left: `${Math.max(5, Math.min(80, (activeEvidenceEvent.bbox_x || 0.35) * 100))}%`,
-              top: `${Math.max(8, Math.min(65, (activeEvidenceEvent.bbox_y || 0.3) * 100))}%`,
-              width: `${Math.max(14, Math.min(45, (activeEvidenceEvent.bbox_w || 0.2) * 100))}%`,
-              height: `${Math.max(20, Math.min(55, (activeEvidenceEvent.bbox_h || 0.45) * 100))}%`,
+              left: `${Math.max(5, Math.min(78, dynamicBoxX * 100))}%`,
+              top: `${Math.max(10, Math.min(60, dynamicBoxY * 100))}%`,
+              width: `${Math.max(16, Math.min(45, (activeEvidenceEvent?.bbox_w || 0.2) * 100))}%`,
+              height: `${Math.max(22, Math.min(55, (activeEvidenceEvent?.bbox_h || 0.45) * 100))}%`,
             }}
           >
             {/* Tag Badge */}
             <div className={`absolute -top-7 left-0 px-2 py-0.5 rounded-t text-[11px] font-bold flex items-center gap-1.5 whitespace-nowrap ${
-              activeEvidenceEvent.risk === "High" 
-                ? "bg-red-600 text-white" 
-                : activeEvidenceEvent.risk === "Medium"
-                ? "bg-amber-500 text-black"
+              activeEvidenceEvent
+                ? activeEvidenceEvent.risk === "High" 
+                  ? "bg-red-600 text-white" 
+                  : "bg-amber-500 text-black"
                 : "bg-emerald-500 text-black"
             }`}>
               <Target size={12} />
               <span>
-                {activeEvidenceEvent.class_name ? activeEvidenceEvent.class_name.replace(/_/g, " ").toUpperCase() : (activeEvidenceEvent.type || "DETECTED OBJECT")}
+                {activeEvidenceEvent 
+                  ? (activeEvidenceEvent.class_name ? activeEvidenceEvent.class_name.replace(/_/g, " ").toUpperCase() : (activeEvidenceEvent.type || "ALERT"))
+                  : "PERSON 98%"}
               </span>
               <span className="opacity-90 font-mono text-[10px]">
-                {activeEvidenceEvent.match_score || Math.round((activeEvidenceEvent.confidence || 0.95) * 100)}%
+                {activeEvidenceEvent ? (activeEvidenceEvent.match_score || 95) : 98}%
               </span>
-              {activeEvidenceEvent.track_id && (
-                <span className="opacity-75 font-mono text-[9px] border-l border-white/40 pl-1">
-                  ID #{activeEvidenceEvent.track_id}
-                </span>
-              )}
+              <span className="opacity-75 font-mono text-[9px] border-l border-white/40 pl-1">
+                ID #{activeEvidenceEvent?.track_id || 104}
+              </span>
             </div>
 
             {/* Target Crosshairs */}
@@ -373,47 +215,21 @@ export default function VideoPlayer({
         </div>
       )}
 
-      {/* Fallback Ambient Tracking Box when AI Overlay is ON and in live mode */}
-      {aiOverlay && isPlaying && !activeEvidenceEvent && (
-        <div className="absolute inset-0 z-10 pointer-events-none">
-          <div 
-            className="absolute border border-emerald-400/80 bg-emerald-500/10 rounded-xs transition-all duration-700 animate-pulse"
-            style={{ left: "32%", top: "28%", width: "22%", height: "46%" }}
-          >
-            <span className="absolute -top-5 left-0 bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-t">
-              Active Tracking • YOLOv8
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* 🎥 Video Container with Dynamic Canvas Fallback */}
+      {/* 🎥 Native Video Player */}
       <div className="relative w-full h-full min-h-[340px] flex items-center justify-center bg-slate-950">
-        {src && !hasVideoError && (
-          <video 
-            ref={videoRef}
-            src={src} 
-            className={`w-full h-full object-cover min-h-[340px] ${videoLoaded ? "block" : "hidden"}`}
-            autoPlay
-            loop={!activeEvidenceEvent}
-            muted={isMuted}
-            defaultMuted
-            playsInline
-            crossOrigin="anonymous"
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-            onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
-            onError={handleVideoError}
-          />
-        )}
-        
-        {/* Animated CCTV Surveillance Simulation Canvas (renders active feed immediately) */}
-        <canvas
-          ref={canvasRef}
-          width={640}
-          height={360}
-          className={`w-full h-full object-cover min-h-[340px] ${videoLoaded && !hasVideoError ? "hidden" : "block"}`}
+        <video 
+          ref={videoRef}
+          key={src}
+          src={src || "/videos/cam1.mp4"}
+          className="w-full h-full object-cover min-h-[340px]"
+          autoPlay
+          loop={!activeEvidenceEvent}
+          muted={isMuted}
+          playsInline
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
         />
       </div>
 
@@ -466,7 +282,10 @@ export default function VideoPlayer({
         {/* Timeline Bar */}
         <div className="w-full flex items-center gap-2 mb-2 font-mono text-[11px] text-slate-300">
           <span>{formatSeconds(currentTime)}</span>
-          <div className="relative flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden cursor-pointer">
+          <div 
+            onClick={handleSeek}
+            className="relative flex-1 h-2 bg-slate-800 rounded-full overflow-hidden cursor-pointer"
+          >
             <div 
               className="h-full bg-blue-500 rounded-full transition-all"
               style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
@@ -527,5 +346,6 @@ export default function VideoPlayer({
     </div>
   );
 }
+
 
 
