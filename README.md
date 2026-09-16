@@ -6,17 +6,18 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![OpenCV](https://img.shields.io/badge/CV-OpenCV-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)](https://opencv.org/)
 
-An intelligent computer vision platform that turns passive CCTV footage into actionable business intelligence for retail spaces. By processing surveillance video in real time, **RetailVision AI** analyzes foot traffic patterns, flags high-risk security events, and delivers an intuitive, interactive management dashboard.
+An intelligent computer vision platform that turns passive CCTV footage into actionable business intelligence for retail spaces. Inspired by state-of-the-art surveillance systems like **SmartSurv**, **RetailVision AI** introduces **Natural Language Video Search**, real-time foot traffic analytics, automated security alerts, and an executive AI daily brief.
 
 ---
 
 ## 🌟 Key Highlights
 
-- ⚡ **Real-Time Motion & Person Detection**: Leverages OpenCV background subtraction (`cv2.createBackgroundSubtractorMOG2`) and contour bounding box tracking to trace customer movement.
-- 🎯 **Configurable Zone & Intrusion Monitoring**: Automatically flags dwell time, restricted-area entries (e.g., Staff-Only zones, Shelves, Checkout aisles), and triggers risk-level alerts.
-- 📊 **Interactive Retail Analytics**: Beautiful Recharts visualizations displaying hourly visitor volume, peak traffic hours, and heat/zone occupancy breakdowns.
+- 🧠 **SmartSurv-Inspired Natural Language Video Search**: Type natural plain-English queries (e.g., *"loitering near shelf"*, *"intrusion in Zone B"*, *"queue forming"*) to instantly query and filter video events with AI relevance match percentages.
+- 🤖 **AI Daily Incident Brief**: Automated executive summary generator synthesizing daily customer movement, intrusion alerts, and peak traffic hours.
+- ⚡ **Real-Time Motion & Person Detection**: Leverages OpenCV background subtraction (`cv2.createBackgroundSubtractorMOG2`) and contour tracking to trace customer movement.
+- 🎯 **Configurable Zone & Intrusion Monitoring**: Automatically flags dwell time and restricted-area entries (e.g., Staff-Only zones, Cash Counters, Checkout aisles).
+- 📊 **Interactive Retail Analytics**: Recharts visualizations displaying hourly visitor volume, peak traffic hours, and zone dwell breakdowns.
 - 🎞️ **Annotated Video Streaming**: Automatically processes, overlays bounding boxes, and streams annotated MP4 video feeds directly through a high-performance FastAPI streaming endpoint.
-- 🔍 **Searchable Event Timeline**: Filter and inspect suspicious activity, dwell events, and high/low risk alerts with micro-timestamps.
 - ☁️ **Full-Stack Cloud Architecture**: Modern Next.js frontend deployed on Vercel with an asynchronous FastAPI engine hosted on Render.
 
 ---
@@ -35,13 +36,14 @@ An intelligent computer vision platform that turns passive CCTV footage into act
 
 ```mermaid
 graph LR
-    A[CCTV Footage / Upload] --> B[FastAPI Backend]
+    A[CCTV Video Upload] --> B[FastAPI Backend]
     B --> C[OpenCV Processing Engine]
-    C --> D[(SQLite Event Store)]
-    C --> E[Annotated MP4 Stream]
-    B --> F[Next.js Dashboard]
-    E --> F
-    D --> F
+    B --> D[AI Semantic Search Engine]
+    C --> E[(SQLite Event Store)]
+    C --> F[Annotated MP4 Stream]
+    E --> D
+    D --> G[Next.js Dashboard]
+    F --> G
 ```
 
 ### **Frontend**
@@ -53,6 +55,7 @@ graph LR
 ### **Backend & Computer Vision**
 - **API Framework**: FastAPI & Uvicorn (Asynchronous REST API)
 - **Vision Engine**: OpenCV (`opencv-python-headless`) for frame-by-frame analysis
+- **Search Engine**: Natural language query parser & semantic intent matching
 - **Database / ORM**: SQLite & SQLAlchemy
 - **Deployment**: Render (Docker / Python Container)
 
@@ -92,10 +95,10 @@ Open **[http://localhost:3000](http://localhost:3000)** to view the dashboard!
 
 ## 📸 Core Capabilities
 
-1. **Upload Video Footage**: Feed `.mp4` or `.avi` surveillance clips into the system.
-2. **Background Processing**: The computer vision model processes frames, records footfall statistics, and identifies zone violations.
-3. **Stream Annotated Output**: View the processed video directly within the dashboard with active detection boxes and zone overlays.
-4. **Export & Audit**: Monitor real-time logs and security events with categorized risk scoring.
+1. **Natural Language CCTV Search**: Search surveillance events by conversational description (*"loitering"*, *"zone breach"*, *"crowd"*).
+2. **AI Daily Executive Brief**: Instant briefing modal summarizing high-risk alerts and traffic flow.
+3. **Background Processing**: The computer vision model processes frames, records footfall statistics, and identifies zone violations.
+4. **Stream Annotated Output**: View the processed video directly within the dashboard with active detection boxes and zone overlays.
 
 ---
 

@@ -36,5 +36,8 @@ class Event(Base):
     description = Column(String)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
     camera_name = Column(String)
+    action = Column(String, default="Movement") # Loitering, Intrusion, Movement, Queue
+    risk = Column(String, default="Low") # Low, Medium, High
+    confidence = Column(Float, default=0.95) # 0.0 to 1.0 confidence score
     
     video = relationship("Video", back_populates="events")

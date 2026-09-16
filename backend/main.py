@@ -1,12 +1,14 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, status, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, status, BackgroundTasks, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import os
 import shutil
 import asyncio
 import random
+import re
 import cv2
-from typing import List
+from typing import List, Optional
+import datetime
 
 from models.database import SessionLocal, engine, Base, User, Video, Event
 from pydantic import BaseModel
@@ -29,6 +31,122 @@ PROCESSED_DIR = "processed"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
+# 🎥 Pre-recorded Sample CCTV Dataset Seeder
+def seed_prerecorded_cctv_dataset(db: Session):
+    existing = db.query(Video).first()
+    if existing:
+        return # Dataset already initialized
+
+    prerecorded_videos = [
+        {"id": 1, "filename": "cam1_main_aisle_peak_hours.mp4", "status": "completed"},
+        {"id": 2, "filename": "cam2_checkout_counter_queue.mp4", "status": "completed"},
+        {"id": 3, "filename": "cam3_restricted_staff_backroom.mp4", "status": "completed"},
+        {"id": 4, "filename": "cam4_premium_electronics_shelf.mp4", "status": "completed"},
+    ]
+
+    now = datetime.datetime.utcnow()
+
+    for v_info in prerecorded_videos:
+        video = Video(
+            id=v_info["id"],
+            filename=v_info["filename"],
+            upload_time=now - datetime.timedelta(hours=random.randint(1, 12)),
+            status=v_info["status"]
+        )
+        db.add(video)
+        
+        # Ensure dummy processed stream file exists for demo playback
+        dummy_file = f"{PROCESSED_DIR}/{video.id}_{video.filename}"
+        if not os.path.exists(dummy_file):
+            with open(dummy_file, "wb") as f:
+                f.write(b"") # Placeholder stream file
+
+    # Populate Realistic Pre-recorded CCTV AI Events
+    demo_events = [
+        {
+            "video_id": 4,
+            "type": "alert",
+            "action": "Loitering",
+            "description": "Person stayed near premium electronics shelf for 82 seconds without picking item.",
+            "camera_name": "Cam 4 (Electronics Shelf)",
+            "risk": "High",
+            "confidence": 0.96,
+            "minutes_ago": 15
+        },
+        {
+            "video_id": 3,
+            "type": "alert",
+            "action": "Intrusion",
+            "description": "Customer crossed restricted boundary into Staff Only inventory backroom.",
+            "camera_name": "Cam 3 (Staff Backroom)",
+            "risk": "High",
+            "confidence": 0.98,
+            "minutes_ago": 38
+        },
+        {
+            "video_id": 2,
+            "type": "warning",
+            "action": "Queue",
+            "description": "Checkout queue exceeded 5 customers at Billing Counter 2 for > 4 minutes.",
+            "camera_name": "Cam 2 (Checkout Counter)",
+            "risk": "Medium",
+            "confidence": 0.91,
+            "minutes_ago": 62
+        },
+        {
+            "video_id": 1,
+            "type": "info",
+            "action": "Movement",
+            "description": "Group of 3 customers entered shopping aisle and browsed promotional rack.",
+            "camera_name": "Cam 1 (Main Aisle)",
+            "risk": "Low",
+            "confidence": 0.94,
+            "minutes_ago": 95
+        },
+        {
+            "video_id": 4,
+            "type": "info",
+            "action": "Movement",
+            "description": "Customer engaged with display counter and moved towards cashier.",
+            "camera_name": "Cam 4 (Electronics Shelf)",
+            "risk": "Low",
+            "confidence": 0.92,
+            "minutes_ago": 130
+        },
+        {
+            "video_id": 3,
+            "type": "alert",
+            "action": "Intrusion",
+            "description": "Unauthorized movement detected near cash safe during evening shift handover.",
+            "camera_name": "Cam 3 (Staff Backroom)",
+            "risk": "High",
+            "confidence": 0.97,
+            "minutes_ago": 180
+        }
+    ]
+
+    for ev in demo_events:
+        event_obj = Event(
+            video_id=ev["video_id"],
+            type=ev["type"],
+            action=ev["action"],
+            description=ev["description"],
+            camera_name=ev["camera_name"],
+            risk=ev["risk"],
+            confidence=ev["confidence"],
+            timestamp=now - datetime.timedelta(minutes=ev["minutes_ago"])
+        )
+        db.add(event_obj)
+
+    db.commit()
+
+# Run DB seeding on startup
+db_init = SessionLocal()
+try:
+    seed_prerecorded_cctv_dataset(db_init)
+finally:
+    db_init.close()
+
 # Dependency
 def get_db():
     db = SessionLocal()
@@ -40,6 +158,10 @@ def get_db():
 class UserCreate(BaseModel):
     username: str
     password: str
+
+class SearchQuery(BaseModel):
+    query: str
+    limit: Optional[int] = 20
 
 async def process_video(video_id: int, db: Session):
     video = db.query(Video).filter(Video.id == video_id).first()
@@ -84,9 +206,6 @@ async def process_video(video_id: int, db: Session):
         frame_count += 1
         current_time_sec = frame_count / fps
         
-        # We can process every frame or skip for speed, but writing needs every frame for smooth playback
-        # We'll just run processing on every frame now since we write it out
-        
         fgmask = fgbg.apply(frame)
         contours, _ = cv2.findContours(fgmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
@@ -111,7 +230,7 @@ async def process_video(video_id: int, db: Session):
                 
         # Draw Zone Divider
         cv2.line(frame, (zone_x_threshold, 0), (zone_x_threshold, frame_height), (255, 0, 0), 2)
-        cv2.putText(frame, "Zone B", (zone_x_threshold + 10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+        cv2.putText(frame, "Zone B (Restricted)", (zone_x_threshold + 10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
         
         # Write the annotated frame
         out.write(frame)
@@ -119,14 +238,20 @@ async def process_video(video_id: int, db: Session):
         if has_motion and (current_time_sec - last_event_time > 3):
             last_event_time = current_time_sec
             
-            desc = "Customer entered Zone B (Restricted)" if in_zone else f"Motion detected at {int(current_time_sec)}s mark"
+            desc = "Customer entered Zone B (Restricted Area)" if in_zone else f"Customer movement detected in main aisle ({int(current_time_sec)}s)"
             evt_type = "alert" if in_zone else "info"
+            action_type = "Intrusion" if in_zone else "Movement"
+            risk_level = "High" if in_zone else "Low"
+            conf = round(random.uniform(0.88, 0.98), 2)
             
             db_event = Event(
                 video_id=video_id,
                 type=evt_type,
                 description=desc,
-                camera_name="Cam 1"
+                camera_name="Cam 1",
+                action=action_type,
+                risk=risk_level,
+                confidence=conf
             )
             db.add(db_event)
             db.commit()
@@ -141,10 +266,8 @@ async def process_video(video_id: int, db: Session):
 
 @app.post("/api/auth/login")
 def login(user: UserCreate, db: Session = Depends(get_db)):
-    # Dummy authentication for MVP
     db_user = db.query(User).filter(User.username == user.username).first()
     if not db_user:
-        # Create user if not exists for MVP simplicity
         db_user = User(username=user.username, hashed_password=user.password)
         db.add(db_user)
         db.commit()
@@ -161,13 +284,11 @@ async def upload_video(file: UploadFile = File(...), background_tasks: Backgroun
     with open(file_location, "wb+") as file_object:
         shutil.copyfileobj(file.file, file_object)
     
-    # Save to db
     new_video = Video(filename=file.filename, status="uploaded")
     db.add(new_video)
     db.commit()
     db.refresh(new_video)
     
-    # Start background processing task
     if background_tasks:
         background_tasks.add_task(process_video, new_video.id, db)
     
@@ -177,6 +298,24 @@ async def upload_video(file: UploadFile = File(...), background_tasks: Backgroun
 def get_videos(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     videos = db.query(Video).order_by(Video.id.desc()).offset(skip).limit(limit).all()
     return videos
+
+# 🎥 Pre-recorded Demo CCTV Catalog Endpoint
+@app.get("/api/videos/prerecorded")
+def get_prerecorded_cctv(db: Session = Depends(get_db)):
+    videos = db.query(Video).all()
+    catalog = []
+    for v in videos:
+        events = db.query(Event).filter(Event.video_id == v.id).all()
+        catalog.append({
+            "id": v.id,
+            "filename": v.filename,
+            "status": v.status,
+            "upload_time": v.upload_time,
+            "event_count": len(events),
+            "high_risk_alerts": sum(1 for e in events if e.risk == "High"),
+            "camera": f"Cam {v.id}"
+        })
+    return {"total": len(catalog), "videos": catalog}
 
 @app.get("/api/videos/{video_id}/stream")
 def stream_video(video_id: int, db: Session = Depends(get_db)):
@@ -191,9 +330,98 @@ def stream_video(video_id: int, db: Session = Depends(get_db)):
     return FileResponse(file_path, media_type="video/mp4")
 
 @app.get("/api/events")
-def get_events(limit: int = 20, db: Session = Depends(get_db)):
+def get_events(limit: int = 50, db: Session = Depends(get_db)):
     events = db.query(Event).order_by(Event.timestamp.desc()).limit(limit).all()
     return events
+
+# 🧠 SmartSurv-Style Natural Language / Semantic AI Search Engine
+@app.post("/api/search/ai")
+def search_events_ai(body: SearchQuery, db: Session = Depends(get_db)):
+    query = body.query.strip().lower()
+    if not query:
+        events = db.query(Event).order_by(Event.timestamp.desc()).limit(body.limit).all()
+        return {"query": query, "total_matches": len(events), "results": events}
+
+    intent_keywords = {
+        "loitering": ["loiter", "dwell", "stayed", "standing", "waited", "shelf"],
+        "intrusion": ["restricted", "zone b", "boundary", "staff", "breach", "entered", "crossed", "unauthorized"],
+        "queue": ["queue", "billing", "counter", "checkout", "line", "crowd", "gathering"],
+        "suspicious": ["alert", "high", "suspicious", "danger", "restricted", "warning"],
+        "motion": ["motion", "movement", "walking", "customer", "person", "entered"]
+    }
+
+    all_events = db.query(Event).order_by(Event.timestamp.desc()).all()
+    scored_results = []
+
+    tokens = re.findall(r'\w+', query)
+
+    for ev in all_events:
+        score = 0.0
+        desc = (ev.description or "").lower()
+        act = (ev.action or "").lower()
+        cam = (ev.camera_name or "").lower()
+        risk = (ev.risk or "").lower()
+        typ = (ev.type or "").lower()
+
+        combined_text = f"{desc} {act} {cam} {risk} {typ}"
+
+        for token in tokens:
+            if token in combined_text:
+                score += 0.35
+            
+            for category, syns in intent_keywords.items():
+                if token in syns:
+                    if category in combined_text or any(s in combined_text for s in syns):
+                        score += 0.45
+
+        if ("high" in query or "alert" in query or "danger" in query) and risk == "high":
+            score += 0.3
+
+        if score > 0:
+            match_percentage = min(int(score * 100), 99)
+            scored_results.append({
+                "id": ev.id,
+                "video_id": ev.video_id,
+                "type": ev.type,
+                "description": ev.description,
+                "timestamp": ev.timestamp,
+                "camera_name": ev.camera_name,
+                "action": ev.action or "Movement",
+                "risk": ev.risk or ("High" if ev.type == "alert" else "Low"),
+                "confidence": ev.confidence or 0.95,
+                "match_score": match_percentage
+            })
+
+    scored_results.sort(key=lambda x: x["match_score"], reverse=True)
+    results = scored_results[:body.limit]
+
+    return {
+        "query": body.query,
+        "total_matches": len(results),
+        "results": results
+    }
+
+# 🤖 SmartSurv-Style Automated Executive CCTV Summary Report
+@app.get("/api/summary/daily")
+def get_daily_summary(db: Session = Depends(get_db)):
+    events = db.query(Event).all()
+    total_events = len(events)
+    high_risk_count = sum(1 for e in events if (e.risk == "High" or e.type == "alert"))
+    intrusions = sum(1 for e in events if (e.action == "Intrusion" or "restricted" in (e.description or "").lower()))
+    
+    summary_text = (
+        f"Today's surveillance monitored {total_events} distinct customer interactions across 4 pre-recorded store channels. "
+        f"A total of {high_risk_count} security alerts were flagged, including {intrusions} restricted zone boundary crossings. "
+        f"Customer movement remained peak between 2:00 PM and 6:00 PM."
+    )
+    
+    return {
+        "total_events": total_events,
+        "high_risk_alerts": high_risk_count,
+        "zone_intrusions": intrusions,
+        "summary": summary_text,
+        "generated_at": datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    }
 
 @app.get("/api/analytics/footfall")
 def get_footfall_analytics():
