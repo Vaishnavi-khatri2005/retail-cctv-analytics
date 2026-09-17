@@ -38,8 +38,6 @@ import {
   BACKEND_URL,
   initialFootfallData,
   zoneData,
-  defaultPrerecordedCams,
-  staticEvents,
 } from "@/data/cctvData";
 
 function RiskBadge({ risk }) {
@@ -62,16 +60,10 @@ function HomeContent() {
   const evidenceParam = searchParams.get("evidence");
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [eventsData, setEventsData] = useState(staticEvents);
+  const [eventsData, setEventsData] = useState([]);
   const [footfallData, setFootfallData] = useState(initialFootfallData);
-  const [videos, setVideos] = useState(defaultPrerecordedCams.map(c => ({ id: c.id, filename: c.file, status: "completed" })));
-  const [selectedVideo, setSelectedVideo] = useState({ 
-    id: 1, 
-    filename: "cam1_main_aisle_peak_hours.mp4", 
-    name: "Cam 1: Supermarket Main Aisle", 
-    videoUrl: `${BACKEND_URL}/api/videos/1/stream`, 
-    status: "completed" 
-  });
+  const [videos, setVideos] = useState([]);
+  const [selectedVideo, setSelectedVideo] = useState(null);
   const [activeEvidenceEvent, setActiveEvidenceEvent] = useState(null);
   const [dailySummary, setDailySummary] = useState(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
@@ -80,18 +72,18 @@ function HomeContent() {
   useEffect(() => {
     if (camParam) {
       const parsedId = parseInt(camParam, 10);
-      const matched = defaultPrerecordedCams.find(c => c.id === parsedId);
+      const matched = videos.find(c => c.id === parsedId);
       if (matched) {
         setSelectedVideo({ 
           id: matched.id, 
-          filename: matched.file, 
-          name: matched.name, 
-          videoUrl: matched.videoUrl || `${BACKEND_URL}/api/videos/${matched.id}/stream`, 
+          filename: matched.filename,
+          name: matched.filename,
+          videoUrl: `${BACKEND_URL}/api/videos/${matched.id}/stream`,
           status: "completed" 
         });
       }
     }
-  }, [camParam]);
+  }, [camParam, videos]);
 
   useEffect(() => {
     if (evidenceParam && eventsData.length > 0) {
@@ -106,13 +98,13 @@ function HomeContent() {
   const handleViewEvidence = (event) => {
     if (!event) return;
     const targetCamId = event.video_id || 1;
-    const matchedCam = defaultPrerecordedCams.find(c => c.id === targetCamId);
+    const matchedCam = videos.find(c => c.id === targetCamId);
     if (matchedCam) {
       setSelectedVideo({
         id: matchedCam.id,
-        filename: matchedCam.file,
-        name: matchedCam.name,
-        videoUrl: matchedCam.videoUrl || `${BACKEND_URL}/api/videos/${matchedCam.id}/stream`,
+        filename: matchedCam.filename,
+        name: matchedCam.filename,
+        videoUrl: `${BACKEND_URL}/api/videos/${matchedCam.id}/stream`,
         status: "completed"
       });
     } else {
@@ -171,11 +163,6 @@ function HomeContent() {
             videoUrl: `${BACKEND_URL}/api/videos/${v.id}/stream`
           }));
           setVideos(mappedVideos);
-          const completedVideos = mappedVideos.filter(v => v.status === 'completed');
-          if (completedVideos.length > 0 && !camParam && !selectedVideo) {
-            const firstCam = defaultPrerecordedCams.find(c => c.id === completedVideos[0].id) || completedVideos[0];
-            setSelectedVideo(firstCam);
-          }
         }
       }
 
@@ -190,7 +177,7 @@ function HomeContent() {
          }
       }
     } catch (err) {
-      console.warn('Backend waking up, using fallback dataset:', err);
+      console.warn('Backend unavailable; no video fallback is used:', err);
     }
   };
 
@@ -456,14 +443,14 @@ function HomeContent() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-              {defaultPrerecordedCams.map((cam) => {
+              {videos.map((cam) => {
                 const isSelected = selectedVideo && selectedVideo.id === cam.id;
                 return (
                   <button
                     key={cam.id}
                     onClick={() => {
                       setActiveEvidenceEvent(null);
-                      setSelectedVideo({ id: cam.id, filename: cam.file, name: cam.name, videoUrl: cam.videoUrl, status: "completed" });
+                      setSelectedVideo({ id: cam.id, filename: cam.filename, name: cam.filename, videoUrl: `${BACKEND_URL}/api/videos/${cam.id}/stream`, status: cam.status });
                     }}
                     className={`text-left p-3.5 rounded-xl border transition flex flex-col justify-between cursor-pointer ${
                       isSelected 
@@ -472,13 +459,13 @@ function HomeContent() {
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-900">{cam.name}</span>
+                      <span className="text-xs font-bold text-slate-900">{cam.filename}</span>
                       {isSelected && <CheckCircle2 size={15} className="text-blue-600" />}
                     </div>
-                    <p className="text-[11px] text-slate-500 truncate mt-1.5 font-mono">{cam.file}</p>
+                    <p className="text-[11px] text-slate-500 truncate mt-1.5 font-mono">Video ID: {cam.id}</p>
                     <div className="mt-3 flex items-center justify-between">
                       <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-white border text-slate-700 shadow-2xs">
-                        {cam.tag}
+                        {cam.status}
                       </span>
                       <span className="text-[11px] font-semibold text-blue-600 flex items-center gap-1">
                         <Play size={10} /> View Feed
@@ -499,7 +486,7 @@ function HomeContent() {
                   {activeEvidenceEvent ? "Evidence Verification Stream" : "Live Processed Feed"}
                 </p>
                 <h2 className="mt-1 text-xl font-semibold">
-                   {selectedVideo ? (selectedVideo.name || selectedVideo.filename) : "Cam 1: Main Aisle"}
+                   {selectedVideo ? (selectedVideo.name || selectedVideo.filename) : "No dataset video selected"}
                 </h2>
               </div>
               <ShieldCheck className="text-emerald-400" size={26} />
@@ -507,9 +494,9 @@ function HomeContent() {
             
             <div className="mt-5 relative z-10 w-full rounded-xl overflow-hidden shadow-2xl border border-slate-800">
               <VideoPlayer 
-                src={selectedVideo?.videoUrl || (defaultPrerecordedCams.find(c => c.id === (selectedVideo?.id || 1))?.videoUrl)} 
-                title={selectedVideo ? (selectedVideo.name || selectedVideo.filename) : "Cam 1: Main Aisle"}
-                tag={activeEvidenceEvent ? `Event: ${activeEvidenceEvent.type}` : (defaultPrerecordedCams.find(c => c.id === (selectedVideo?.id || 1))?.tag || "Footfall")}
+                videoId={selectedVideo?.id}
+                title={selectedVideo ? (selectedVideo.name || selectedVideo.filename) : "Dataset video"}
+                tag={activeEvidenceEvent ? `Event: ${activeEvidenceEvent.type}` : "YOLO + ByteTrack annotations"}
                 activeEvidenceEvent={activeEvidenceEvent}
                 onClearEvidence={() => setActiveEvidenceEvent(null)}
               />

@@ -36,6 +36,9 @@ def auto_migrate_schema():
                 for col_name, col_def in migration_cols.items():
                     if col_name not in cols:
                         conn.execute(text(f"ALTER TABLE events ADD COLUMN {col_name} {col_def}"))
+            video_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(videos)")).fetchall()]
+            if video_cols and "source_path" not in video_cols:
+                conn.execute(text("ALTER TABLE videos ADD COLUMN source_path VARCHAR"))
     except Exception as e:
         print("Schema migration notice:", e)
 
@@ -53,6 +56,9 @@ class Video(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     filename = Column(String, index=True)
+    # Absolute, immutable origin of the footage.  Dataset runs point directly
+    # at backend/data/sample_cctv; uploads point at backend/uploads.
+    source_path = Column(String, nullable=True)
     upload_time = Column(DateTime, default=datetime.datetime.utcnow)
     status = Column(String, default="pending") # pending, processing, completed
     events = relationship("Event", back_populates="video")

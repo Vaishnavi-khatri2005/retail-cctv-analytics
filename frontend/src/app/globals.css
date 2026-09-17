@@ -24,3 +24,12 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.app-main {
+  transition: padding-left 300ms ease-in-out;
+}
+
+@media (min-width: 1024px) {
+  .app-main { padding-left: 16rem; }
+  html[data-sidebar="collapsed"] .app-main { padding-left: 5rem; }
+}

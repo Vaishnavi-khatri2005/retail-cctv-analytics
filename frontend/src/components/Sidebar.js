@@ -1,60 +1,15 @@
 "use client";
-
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import {
-  Activity,
-  Search,
-  Bell,
-  MapPin,
-  Settings,
-  Eye
-} from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, Eye, House, Menu, MonitorPlay, Search, Settings, Siren, X } from "lucide-react";
 
+const items = [{href:"/",label:"Dashboard",icon:House},{href:"/cameras",label:"CCTV Monitoring",icon:MonitorPlay},{href:"/alerts",label:"Incidents / Alerts",icon:Siren},{href:"/#analytics",label:"Analytics",icon:BarChart3},{href:"/search",label:"AI Search",icon:Search},{href:"/settings",label:"Settings",icon:Settings}];
+function Navigation({collapsed,onNavigate}) { const pathname=usePathname(); return <nav className="mt-7 flex flex-1 flex-col gap-1.5 px-3" aria-label="Primary navigation">{items.map(({href,label,icon:Icon})=>{const active=href==="/"?pathname==="/":pathname===href; return <Link key={label} href={href} onClick={onNavigate} title={collapsed?label:undefined} className={`group relative flex h-11 items-center rounded-xl px-3 text-sm font-medium transition-colors ${active?"bg-blue-600 text-white shadow-md shadow-blue-600/20":"text-slate-500 hover:bg-slate-100 hover:text-slate-950"}`}><Icon size={20} className="shrink-0"/><span className={`ml-3 whitespace-nowrap transition-all duration-200 ${collapsed?"pointer-events-none w-0 overflow-hidden opacity-0":"w-auto opacity-100"}`}>{label}</span>{collapsed&&<span className="pointer-events-none absolute left-[calc(100%+10px)] z-50 hidden rounded-md bg-slate-900 px-2 py-1 text-xs whitespace-nowrap text-white shadow-lg group-hover:block">{label}</span>}</Link>})}</nav> }
 export default function Sidebar() {
-  const pathname = usePathname();
-
-  const navigationItems = [
-    { href: "/", label: "Dashboard", icon: Activity },
-    { href: "/search", label: "AI Search", icon: Search },
-    { href: "/alerts", label: "Security Alerts", icon: Bell, badge: 3 },
-    { href: "/cameras", label: "Camera Channels", icon: MapPin },
-    { href: "/settings", label: "System & AI Rules", icon: Settings },
-  ];
-
-  return (
-    <aside className="fixed left-0 top-0 hidden h-screen w-20 flex-col items-center border-r border-slate-200 bg-white py-5 lg:flex z-30 shadow-xs">
-      <Link 
-        href="/"
-        className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-950 text-white shadow-md hover:scale-105 transition"
-      >
-        <Eye size={22} />
-      </Link>
-      <nav className="mt-10 flex flex-1 flex-col gap-3">
-        {navigationItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`relative flex h-11 w-11 items-center justify-center rounded-lg transition cursor-pointer ${
-                isActive 
-                  ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-xs" 
-                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-              }`}
-              title={item.label}
-            >
-              <Icon size={20} />
-              {item.badge && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-xs">
-                  {item.badge}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-    </aside>
-  );
+  const [collapsed,setCollapsed]=useState(false),[mobileOpen,setMobileOpen]=useState(false);
+  useEffect(()=>setCollapsed(localStorage.getItem("retail-sidebar-collapsed")==="true"),[]);
+  useEffect(()=>{document.documentElement.dataset.sidebar=collapsed?"collapsed":"expanded";localStorage.setItem("retail-sidebar-collapsed",String(collapsed));},[collapsed]);
+  const brand=<Link href="/" className="flex items-center gap-3 overflow-hidden px-3" aria-label="Retail CCTV Analytics home"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white shadow-md"><Eye size={21}/></span><span className="whitespace-nowrap text-sm font-bold tracking-tight text-slate-900">Retail CCTV Analytics</span></Link>;
+  return <><button onClick={()=>setMobileOpen(true)} className="fixed left-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-lg lg:hidden" aria-label="Open navigation"><Menu size={20}/></button><aside className={`fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-slate-200 bg-white py-5 shadow-sm transition-[width] duration-300 ease-in-out lg:flex ${collapsed?"w-20":"w-64"}`}>{brand}<Navigation collapsed={collapsed}/><div className="border-t border-slate-100 px-3 pt-4"><button onClick={()=>setCollapsed(value=>!value)} className="flex h-11 w-full items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-950" aria-label={collapsed?"Expand sidebar":"Collapse sidebar"}>{collapsed?<ChevronRight size={20}/>:<><ChevronLeft size={20}/><span className="ml-2 text-sm font-medium">Collapse</span></>}</button></div></aside>{mobileOpen&&<div className="fixed inset-0 z-50 lg:hidden"><button className="absolute inset-0 bg-slate-950/40" onClick={()=>setMobileOpen(false)} aria-label="Close navigation overlay"/><aside className="relative flex h-full w-72 flex-col bg-white py-5 shadow-2xl animate-in slide-in-from-left duration-200"><div className="flex items-center justify-between pr-3">{brand}<button onClick={()=>setMobileOpen(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Close navigation"><X size={20}/></button></div><Navigation collapsed={false} onNavigate={()=>setMobileOpen(false)}/></aside></div>}</>;
 }

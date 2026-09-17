@@ -13,6 +13,7 @@ import {
   Video as VideoIcon
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { BACKEND_URL } from "@/data/cctvData";
 
 function formatSeconds(sec) {
   if (typeof sec !== "number" || isNaN(sec)) return "00:00";
@@ -22,13 +23,14 @@ function formatSeconds(sec) {
 }
 
 export default function VideoPlayer({ 
-  src, 
+  videoId,
   title = "Live Camera Feed",
   tag = "CV Pipeline Processed",
   activeEvidenceEvent = null,
   onClearEvidence = null,
   onReplayEvidence = null
 }) {
+  const src = videoId ? `${BACKEND_URL}/api/videos/${videoId}/stream` : null;
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
@@ -144,7 +146,7 @@ export default function VideoPlayer({
           </div>
         ) : (
           <div className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-bold px-3 py-1 rounded-md flex items-center gap-1.5 backdrop-blur-sm">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> REAL CCTV STREAM
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> SELECTED VIDEO ANALYSIS
           </div>
         )}
         <div className="bg-slate-900/80 text-blue-400 border border-slate-700/60 text-xs font-semibold px-2.5 py-1 rounded-md backdrop-blur-sm">
@@ -178,7 +180,7 @@ export default function VideoPlayer({
         ) : (
           <div className="min-h-[340px] flex flex-col items-center justify-center p-8 text-center bg-slate-950">
             <ShieldAlert size={36} className="text-slate-600 mb-3" />
-            <p className="text-slate-300 font-semibold text-sm">Video unavailable</p>
+            <p className="text-slate-300 font-semibold text-sm">Dataset video not found</p>
             <p className="text-xs text-slate-500 mt-1 max-w-sm">
               Please select &quot;Use Sample Dataset → Run Analysis&quot; or upload CCTV footage to process with OpenCV.
             </p>
@@ -289,7 +291,5 @@ export default function VideoPlayer({
     </div>
   );
 }
-
-
 
 

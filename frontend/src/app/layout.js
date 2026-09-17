@@ -25,7 +25,7 @@ export default function RootLayout({ children }) {
     >
       <body className="min-h-full flex flex-col bg-[#f6f7f9] text-slate-950">
         <Sidebar />
-        <div className="lg:pl-20 min-h-screen">
+        <div className="app-main min-h-screen">
           {children}
         </div>
       </body>

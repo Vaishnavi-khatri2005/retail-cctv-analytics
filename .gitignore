@@ -8,3 +8,6 @@ backend/__pycache__
 backend/uploads
 backend/processed
 *.env
+*.log
+*.pt
+outputs/
