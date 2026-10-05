@@ -1,63 +1,67 @@
-# 🎥 RetailVision AI — Smart Retail CCTV Search & Video Analytics
+# 🎥 RetailVision AI — Smart Retail CCTV Search & YOLO Video Analytics
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-black?style=for-the-badge&logo=vercel)](https://retail-cctv-analytics.vercel.app)
-[![API Backend](https://img.shields.io/badge/API-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://retail-cctv-analytics-backend.onrender.com)
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-000000?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![OpenCV](https://img.shields.io/badge/CV-OpenCV-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)](https://opencv.org/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-HTTPS%20Online-2563eb?style=for-the-badge&logo=cloudflare&logoColor=white)](https://button-lat-bizrate-sleeps.trycloudflare.com)
+[![API Docs](https://img.shields.io/badge/API%20Docs-Swagger%20UI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://button-lat-bizrate-sleeps.trycloudflare.com/docs)
+[![GCP Cloud Run](https://img.shields.io/badge/Deploy-GCP%20Cloud%20Run-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)](https://cloud.google.com/run)
+[![YOLOv8](https://img.shields.io/badge/AI%20Detector-YOLOv8-FF6F00?style=for-the-badge&logo=ultralytics&logoColor=white)](https://github.com/ultralytics/ultralytics)
+[![Next.js 16](https://img.shields.io/badge/Frontend-Next.js%2016-000000?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![Docker](https://img.shields.io/badge/Container-Docker%20Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 
-An intelligent computer vision platform that turns passive CCTV footage into actionable business intelligence for retail spaces. Inspired by state-of-the-art surveillance systems like **SmartSurv**, **RetailVision AI** introduces **Natural Language Video Search**, real-time foot traffic analytics, automated security alerts, and an executive AI daily brief.
+An intelligent retail computer vision & analytics platform that transforms passive surveillance video into real-time business intelligence and loss-prevention insights. 
+
+Powered by **Ultralytics YOLOv8**, **ByteTrack Multi-Object Tracking**, **OpenCV**, and a unified **FastAPI + Next.js 16** architecture, **RetailVision AI** delivers verified object detection, natural language incident search, automated security alerts, precision event evidence playback, and hourly footfall analytics.
+
+---
+
+## 🚀 Live Application & API
+
+| Service | Link | Description |
+| :--- | :--- | :--- |
+| **🌐 Interactive Dashboard** | **[button-lat-bizrate-sleeps.trycloudflare.com](https://button-lat-bizrate-sleeps.trycloudflare.com)** | Full dashboard with live YOLO video playback |
+| **📖 REST & Streaming API** | **[Swagger / OpenAPI Documentation](https://button-lat-bizrate-sleeps.trycloudflare.com/docs)** | Interactive API test console & endpoints |
+| **🎥 Video Stream Endpoint** | `GET /api/videos/{video_id}/stream` | Direct H.264 byte-range video streaming |
 
 ---
 
 ## 🌟 Key Highlights
 
-- 🧠 **SmartSurv-Inspired Natural Language Video Search**: Type natural plain-English queries (e.g., *"loitering near shelf"*, *"intrusion in Zone B"*, *"queue forming"*) to instantly query and filter video events with AI relevance match percentages.
-- 🤖 **AI Daily Incident Brief**: Automated executive summary generator synthesizing daily customer movement, intrusion alerts, and peak traffic hours.
-- ⚡ **Real-Time Motion & Person Detection**: Leverages OpenCV background subtraction (`cv2.createBackgroundSubtractorMOG2`) and contour tracking to trace customer movement.
-- 🎯 **Configurable Zone & Intrusion Monitoring**: Automatically flags dwell time and restricted-area entries (e.g., Staff-Only zones, Cash Counters, Checkout aisles).
-- 📊 **Interactive Retail Analytics**: Recharts visualizations displaying hourly visitor volume, peak traffic hours, and zone dwell breakdowns.
-- 🎞️ **Annotated Video Streaming**: Automatically processes, overlays bounding boxes, and streams annotated MP4 video feeds directly through a high-performance FastAPI streaming endpoint.
-- ☁️ **Full-Stack Cloud Architecture**: Modern Next.js frontend deployed on Vercel with an asynchronous FastAPI engine hosted on Render.
-
----
-
-## 🚀 Live Demos & Links
-
-| Service | Link | Status |
-| :--- | :--- | :--- |
-| **🌐 Interactive Dashboard** | [retail-cctv-analytics.vercel.app](https://retail-cctv-analytics.vercel.app) | `Live Production` |
-| **⚙️ REST & Streaming API** | [retail-cctv-analytics-backend.onrender.com](https://retail-cctv-analytics-backend.onrender.com) | `Active` |
-| **📖 API Documentation** | [Swagger / OpenAPI Docs](https://retail-cctv-analytics-backend.onrender.com/docs) | `Interactive` |
+- 🧠 **SmartSurv-Inspired Natural Language Video Search**: Search surveillance footage in plain English (*"loitering near jewelry showcase"*, *"unauthorized backroom intrusion"*, *"billing queue bottleneck"*) with AI semantic match scoring.
+- ⚡ **Real YOLOv8 Object Detection & ByteTrack**: Replaces synthetic boxes with real deep-learning detection (`person`, `handbag`, `bottle`, etc.), unique tracking IDs, and model confidence scores.
+- ⏱️ **Precision Event Playback / Evidence HUD**: Jump directly to **10 seconds before an incident occurs** and review continuous looped evidence windows.
+- 📁 **Direct CCTV Dataset Ingestion**: Load and process real retail surveillance datasets from `backend/data/sample_cctv/` or upload custom footage.
+- 🎞️ **Browser-Native H.264 Transcoding**: Uses FFmpeg (`imageio-ffmpeg`) with `+faststart` so annotated videos play smoothly across Chrome, Edge, Safari, and mobile browsers without black-screen errors.
+- 📊 **Interactive Retail Analytics**: Dynamic Recharts visualizations showing hourly visitor trends, zone dwell times, and perimeter status.
+- 🤖 **AI Daily Executive Brief**: Instant executive briefing synthesizing daily foot traffic, customer dwell times, and high-risk security triggers.
+- ☁️ **Google Cloud Platform (GCP Cloud Run) Ready**: Multi-stage unified Docker container with Cloud Build CI/CD support.
 
 ---
 
 ## 🛠️ Architecture & Tech Stack
 
 ```mermaid
-graph LR
-    A[CCTV Video Upload] --> B[FastAPI Backend]
-    B --> C[OpenCV Processing Engine]
-    B --> D[AI Semantic Search Engine]
-    C --> E[(SQLite Event Store)]
-    C --> F[Annotated MP4 Stream]
-    E --> D
-    D --> G[Next.js Dashboard]
-    F --> G
+flowchart LR
+    A["📹 CCTV Video / Dataset\n(backend/data/sample_cctv)"] --> B["⚡ FastAPI Backend Engine"]
+    B --> C["🤖 YOLOv8 + ByteTrack\n(Object & Person Tracking)"]
+    C --> D["🎞️ FFmpeg H.264 Transcoder\n(+faststart MP4)"]
+    C --> E[("🗄️ SQLite Database\n(Real Event & BBox Store)")]
+    D --> F["🌐 Video Streaming API\n(/api/videos/:id/stream)"]
+    E --> G["🧠 AI Semantic Search Engine"]
+    F --> H["💻 Next.js 16 Dashboard\n(HTML5 VideoPlayer & Recharts)"]
+    G --> H
 ```
 
 ### **Frontend**
-- **Framework**: Next.js 14 (App Router)
+- **Framework**: Next.js 16 (App Router)
 - **Styling**: Tailwind CSS & Lucide Icons
-- **Data Visualizations**: Recharts (Dynamic Area & Bar Charts)
-- **Deployment**: Vercel
+- **Data Visualizations**: Recharts (Interactive Area & Bar Charts)
+- **Video Playback**: Custom HTML5 Player with Evidence Time Scrubbing & Looping
 
 ### **Backend & Computer Vision**
-- **API Framework**: FastAPI & Uvicorn (Asynchronous REST API)
-- **Vision Engine**: OpenCV (`opencv-python-headless`) for frame-by-frame analysis
-- **Search Engine**: Natural language query parser & semantic intent matching
+- **Framework**: FastAPI & Uvicorn (Asynchronous REST API)
+- **AI / Detector**: Ultralytics YOLOv8 (`yolov8n.pt`) with ByteTrack
+- **Vision Engine**: OpenCV (`opencv-python-headless`) + NumPy
+- **Transcoding**: FFmpeg with `libx264`, `yuv420p`, and `+faststart`
 - **Database / ORM**: SQLite & SQLAlchemy
-- **Deployment**: Render (Docker / Python Container)
 
 ---
 
@@ -69,13 +73,14 @@ git clone https://github.com/Vaishnavi-khatri2005/retail-cctv-analytics.git
 cd retail-cctv-analytics
 ```
 
-### 2. Launch Backend (FastAPI + OpenCV)
+### 2. Launch Backend (FastAPI + YOLOv8)
 ```bash
 cd backend
 python -m venv venv
+
 # Windows:
 .\venv\Scripts\activate
-# macOS/Linux:
+# macOS / Linux:
 source venv/bin/activate
 
 pip install -r requirements.txt
@@ -89,19 +94,49 @@ cd ../frontend
 npm install
 npm run dev
 ```
-Open **[http://localhost:3000](http://localhost:3000)** to view the dashboard!
+Open **[http://localhost:3000](http://localhost:3000)** in your browser!
 
 ---
 
-## 📸 Core Capabilities
+## 🐳 Docker & Google Cloud Platform (GCP) Deployment
 
-1. **Natural Language CCTV Search**: Search surveillance events by conversational description (*"loitering"*, *"zone breach"*, *"crowd"*).
-2. **AI Daily Executive Brief**: Instant briefing modal summarizing high-risk alerts and traffic flow.
-3. **Background Processing**: The computer vision model processes frames, records footfall statistics, and identifies zone violations.
-4. **Stream Annotated Output**: View the processed video directly within the dashboard with active detection boxes and zone overlays.
+The repository includes a production-ready, multi-stage [`Dockerfile`](./Dockerfile) that builds the Next.js frontend and packages the FastAPI YOLO backend into a single container.
+
+### Option 1: Run with Docker Compose
+```bash
+docker-compose up --build
+```
+Access the application at `http://localhost:8080`.
+
+### Option 2: Deploy to Google Cloud Run (1 Command)
+```bash
+gcloud run deploy retail-cctv-analytics \
+  --source . \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --memory 2Gi \
+  --cpu 2 \
+  --timeout 300
+```
+
+Or run the automated deployment script:
+- **Windows**: `.\deploy-gcp.ps1 -ProjectId YOUR_PROJECT_ID`
+- **Linux / macOS**: `./deploy-gcp.sh YOUR_PROJECT_ID`
+
+*For comprehensive cloud deployment steps (including GCP Console Web UI & Hugging Face Spaces), see [`DEPLOYMENT.md`](./DEPLOYMENT.md).*
 
 ---
 
-## 📄 License & Attribution
+## 📸 Core Features in Action
 
-Distributed under the MIT License. Developed for intelligent retail space surveillance and customer behavior analytics.
+1. **Use Sample Dataset &rarr; Run Analysis**: Loads original video from `backend/data/sample_cctv/`, detects people and objects using YOLOv8, and streams the annotated H.264 video.
+2. **Precision Evidence Playback**: Click **"▶ View Evidence"** on any alert to jump directly to `-10s` before the incident.
+3. **Natural Language CCTV Search**: Query store events using semantic descriptions (*"someone lingered near luxury showcase"*, *"cashier counter queue"*).
+4. **AI Daily Executive Brief**: One-click summary modal synthesizing store traffic and perimeter status.
+
+---
+
+## 📄 License
+
+Distributed under the MIT License. Developed for retail space surveillance, loss prevention, and customer behavior analytics.
