@@ -40,6 +40,17 @@ import {
   zoneData,
 } from "@/data/cctvData";
 
+function formatVideoTitle(filename) {
+  if (!filename) return "CCTV Camera Stream";
+  let clean = filename.replace(/\.(mp4|avi|mov|mkv)$/i, "");
+  clean = clean.replace(/^dataset_\d+_/, "");
+  clean = clean.replace(/^\d+_/, "");
+  return clean
+    .split(/[_-]+/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 function RiskBadge({ risk }) {
   const styles = {
     High: "border-red-200 bg-red-50 text-red-700",
@@ -48,7 +59,7 @@ function RiskBadge({ risk }) {
   };
 
   return (
-    <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${styles[risk] || styles["Low"]}`}>
+    <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${styles[risk] || styles["Low"]}`}>
       {risk}
     </span>
   );
@@ -77,7 +88,7 @@ function HomeContent() {
         setSelectedVideo({ 
           id: matched.id, 
           filename: matched.filename,
-          name: matched.filename,
+          name: formatVideoTitle(matched.filename),
           videoUrl: `${BACKEND_URL}/api/videos/${matched.id}/stream`,
           status: "completed" 
         });
@@ -103,7 +114,7 @@ function HomeContent() {
       setSelectedVideo({
         id: matchedCam.id,
         filename: matchedCam.filename,
-        name: matchedCam.filename,
+        name: formatVideoTitle(matchedCam.filename),
         videoUrl: `${BACKEND_URL}/api/videos/${matchedCam.id}/stream`,
         status: "completed"
       });
@@ -163,6 +174,15 @@ function HomeContent() {
             videoUrl: `${BACKEND_URL}/api/videos/${v.id}/stream`
           }));
           setVideos(mappedVideos);
+          if (!selectedVideo && mappedVideos.length > 0 && !camParam) {
+            setSelectedVideo({
+              id: mappedVideos[0].id,
+              filename: mappedVideos[0].filename,
+              name: formatVideoTitle(mappedVideos[0].filename),
+              videoUrl: `${BACKEND_URL}/api/videos/${mappedVideos[0].id}/stream`,
+              status: mappedVideos[0].status
+            });
+          }
         }
       }
 
@@ -187,7 +207,7 @@ function HomeContent() {
       setSelectedVideo({
         id: data.video_id,
         filename: data.filename || "dataset_sample_main_aisle.mp4",
-        name: data.filename || "Dataset Sample Analysis",
+        name: formatVideoTitle(data.filename) || "Dataset Sample Analysis",
         videoUrl: data.stream_url || `${BACKEND_URL}/api/videos/${data.video_id}/stream`,
         status: "completed"
       });
@@ -234,6 +254,7 @@ function HomeContent() {
             <button 
               onClick={() => setShowSummaryModal(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+              aria-label="Close summary modal"
             >
               <X size={20} />
             </button>
@@ -241,30 +262,30 @@ function HomeContent() {
               <Sparkles size={20} />
               <h3 className="font-semibold text-lg text-slate-900">AI Daily Incident Summary</h3>
             </div>
-            <p className="text-xs text-slate-400 mb-4">Generated at: {dailySummary.generated_at}</p>
+            <p className="text-xs text-slate-500 mb-4">Generated at: {dailySummary.generated_at}</p>
             
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm leading-relaxed text-slate-700 mb-5">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm leading-relaxed text-slate-700 mb-5">
               {dailySummary.summary}
             </div>
 
             <div className="grid grid-cols-3 gap-3 text-center mb-6">
-              <div className="bg-blue-50/60 p-3 rounded-lg border border-blue-100">
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
                 <p className="text-xs text-blue-600 font-medium">Total Events</p>
-                <p className="text-2xl font-bold text-blue-950 mt-1">{dailySummary.total_events}</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{dailySummary.total_events}</p>
               </div>
-              <div className="bg-red-50/60 p-3 rounded-lg border border-red-100">
+              <div className="bg-red-50 p-3 rounded-lg border border-red-100">
                 <p className="text-xs text-red-600 font-medium">Security Alerts</p>
-                <p className="text-2xl font-bold text-red-950 mt-1">{dailySummary.high_risk_alerts}</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{dailySummary.high_risk_alerts}</p>
               </div>
-              <div className="bg-amber-50/60 p-3 rounded-lg border border-amber-100">
+              <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
                 <p className="text-xs text-amber-600 font-medium">Intrusions</p>
-                <p className="text-2xl font-bold text-amber-950 mt-1">{dailySummary.zone_intrusions}</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{dailySummary.zone_intrusions}</p>
               </div>
             </div>
 
             <button 
               onClick={() => setShowSummaryModal(false)}
-              className="w-full py-2.5 bg-slate-900 text-white font-medium text-sm rounded-xl hover:bg-slate-800 transition cursor-pointer"
+              className="w-full py-2.5 bg-blue-600 text-white font-medium text-sm rounded-xl hover:bg-blue-700 transition shadow-xs cursor-pointer"
             >
               Close Summary
             </button>
@@ -279,32 +300,32 @@ function HomeContent() {
         onAnalysisComplete={handleAnalysisComplete}
       />
 
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between lg:px-8">
           <div>
-            <p className="text-sm font-medium text-blue-700">RetailVision AI</p>
-            <h1 className="text-2xl font-semibold tracking-normal text-slate-950">
+            <p className="text-sm font-medium text-blue-600">RetailVision AI</p>
+            <h1 className="text-2xl font-semibold tracking-normal text-slate-900">
               Live Surveillance & Retail Analytics Dashboard
             </h1>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             <button 
               onClick={fetchAIDailyReport}
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm cursor-pointer"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 transition shadow-xs cursor-pointer"
             >
               <Sparkles size={16} className="text-blue-600" />
               AI Daily Brief
             </button>
             <button 
               onClick={() => setIsUploadOpen(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-blue-600 bg-blue-50 px-3.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition shadow-sm cursor-pointer"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-medium text-blue-700 hover:bg-blue-100 transition shadow-xs cursor-pointer"
             >
               <Database size={16} />
               Use Sample Dataset
             </button>
             <button 
               onClick={() => setIsUploadOpen(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-slate-950 px-3.5 text-sm font-semibold text-white hover:bg-slate-800 transition shadow-md cursor-pointer"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 transition shadow-xs cursor-pointer"
             >
               <Upload size={16} />
               Upload CCTV
@@ -313,74 +334,74 @@ function HomeContent() {
         </div>
       </header>
 
-      <div className="grid gap-5 px-5 py-6 lg:grid-cols-[1fr_360px] lg:px-8">
+      <div className="grid gap-5 px-5 py-6 lg:grid-cols-[1fr_380px] lg:px-8">
         <section className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
               <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                   <Users size={20} />
                 </div>
                 <ArrowUpRight size={18} className="text-slate-400" />
               </div>
-              <p className="mt-5 text-sm font-medium text-slate-500">Visitors Today</p>
+              <p className="mt-4 text-xs font-medium text-slate-500">Visitors Today</p>
               <div className="mt-1 flex items-end justify-between gap-3">
-                <strong className="text-3xl font-semibold">186</strong>
-                <span className="text-sm font-medium text-emerald-600">+18%</span>
+                <strong className="text-3xl font-semibold text-slate-900">186</strong>
+                <span className="text-xs font-semibold text-emerald-600">+18%</span>
               </div>
             </article>
 
-            <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
               <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-600">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
                   <AlertTriangle size={20} />
                 </div>
                 <ArrowUpRight size={18} className="text-slate-400" />
               </div>
-              <p className="mt-5 text-sm font-medium text-slate-500">Security Alerts</p>
+              <p className="mt-4 text-xs font-medium text-slate-500">Security Alerts</p>
               <div className="mt-1 flex items-end justify-between gap-3">
-                <strong className="text-3xl font-semibold">{highRiskCount}</strong>
-                <span className="text-sm font-medium text-red-500">high risk</span>
+                <strong className="text-3xl font-semibold text-slate-900">{highRiskCount}</strong>
+                <span className="text-xs font-semibold text-red-600">high risk</span>
               </div>
             </article>
 
-            <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
               <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
                   <Play size={20} />
                 </div>
                 <ArrowUpRight size={18} className="text-slate-400" />
               </div>
-              <p className="mt-5 text-sm font-medium text-slate-500">Tracked Clips</p>
+              <p className="mt-4 text-xs font-medium text-slate-500">Tracked Clips</p>
               <div className="mt-1 flex items-end justify-between gap-3">
-                <strong className="text-3xl font-semibold">{videos.length || 4}</strong>
-                <span className="text-sm font-medium text-slate-500">in database</span>
+                <strong className="text-3xl font-semibold text-slate-900">{videos.length || 4}</strong>
+                <span className="text-xs font-medium text-slate-500">in database</span>
               </div>
             </article>
 
-            <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
               <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
                   <Camera size={20} />
                 </div>
                 <ArrowUpRight size={18} className="text-slate-400" />
               </div>
-              <p className="mt-5 text-sm font-medium text-slate-500">Active Cameras</p>
+              <p className="mt-4 text-xs font-medium text-slate-500">Active Cameras</p>
               <div className="mt-1 flex items-end justify-between gap-3">
-                <strong className="text-3xl font-semibold">04</strong>
-                <span className="text-sm font-medium text-emerald-600">all online</span>
+                <strong className="text-3xl font-semibold text-slate-900">04</strong>
+                <span className="text-xs font-semibold text-emerald-600">all online</span>
               </div>
             </article>
           </div>
 
           <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold">Hourly Footfall</h2>
-                  <p className="text-sm text-slate-500">People detected through entry and exit zones.</p>
+                  <h2 className="text-base font-semibold text-slate-900">Hourly Footfall</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">People detected through entry and exit zones.</p>
                 </div>
-                <span className="rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
+                <span className="rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
                   Live Data
                 </span>
               </div>
@@ -393,9 +414,9 @@ function HomeContent() {
                         <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis dataKey="time" tickLine={false} axisLine={false} />
-                    <YAxis tickLine={false} axisLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="time" tickLine={false} axisLine={false} stroke="#64748b" fontSize={12} />
+                    <YAxis tickLine={false} axisLine={false} stroke="#64748b" fontSize={12} />
                     <Tooltip />
                     <Area type="monotone" dataKey="visitors" stroke="#2563eb" strokeWidth={3} fill="url(#footfall)" />
                   </AreaChart>
@@ -403,15 +424,15 @@ function HomeContent() {
               </div>
             </article>
 
-            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-lg font-semibold">Zone Activity</h2>
-              <p className="text-sm text-slate-500">Dwell time and movement by shop area.</p>
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+              <h2 className="text-base font-semibold text-slate-900">Zone Activity</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Dwell time and movement by shop area.</p>
               <div className="mt-6 h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={zoneData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis dataKey="zone" tickLine={false} axisLine={false} />
-                    <YAxis tickLine={false} axisLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="zone" tickLine={false} axisLine={false} stroke="#64748b" fontSize={12} />
+                    <YAxis tickLine={false} axisLine={false} stroke="#64748b" fontSize={12} />
                     <Tooltip />
                     <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                       {zoneData.map((entry) => (
@@ -425,50 +446,68 @@ function HomeContent() {
           </div>
 
           {/* 🎥 Pre-recorded CCTV Channel Database Selector */}
-          <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <VideoIcon size={19} className="text-blue-600" />
+                <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                  <VideoIcon size={18} className="text-blue-600" />
                   Pre-Recorded CCTV Footage Database
                 </h2>
-                <p className="text-sm text-slate-500">Select any pre-recorded retail surveillance camera to inspect its live AI feed.</p>
+                <p className="text-xs text-slate-500 mt-0.5">Select any retail surveillance camera footage to inspect its live AI stream.</p>
               </div>
               <Link 
                 href="/cameras"
-                className="text-xs font-semibold px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition"
+                className="text-xs font-semibold px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition"
               >
                 Manage All Channels →
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
               {videos.map((cam) => {
                 const isSelected = selectedVideo && selectedVideo.id === cam.id;
+                const formattedTitle = formatVideoTitle(cam.filename);
                 return (
                   <button
                     key={cam.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    aria-label={`Select CCTV footage: ${formattedTitle}`}
                     onClick={() => {
                       setActiveEvidenceEvent(null);
-                      setSelectedVideo({ id: cam.id, filename: cam.filename, name: cam.filename, videoUrl: `${BACKEND_URL}/api/videos/${cam.id}/stream`, status: cam.status });
+                      setSelectedVideo({ 
+                        id: cam.id, 
+                        filename: cam.filename, 
+                        name: formattedTitle, 
+                        videoUrl: `${BACKEND_URL}/api/videos/${cam.id}/stream`, 
+                        status: cam.status 
+                      });
                     }}
-                    className={`text-left p-3.5 rounded-xl border transition flex flex-col justify-between cursor-pointer ${
+                    className={`text-left p-4 pb-4.5 rounded-2xl border transition flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
                       isSelected 
-                        ? "border-blue-600 bg-blue-50 ring-2 ring-blue-500/20 shadow-sm" 
+                        ? "border-blue-600 bg-blue-50/70 ring-2 ring-blue-500/20 shadow-xs" 
                         : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-900">{cam.filename}</span>
-                      {isSelected && <CheckCircle2 size={15} className="text-blue-600" />}
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-xs font-bold text-slate-900 leading-snug line-clamp-2">{formattedTitle}</span>
+                        {isSelected ? (
+                          <CheckCircle2 size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                        ) : (
+                          <span className="text-slate-300 text-xs shrink-0 mt-0.5">#0{cam.id}</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 truncate mt-1.5 font-mono">Video ID: {cam.id}</p>
                     </div>
-                    <p className="text-[11px] text-slate-500 truncate mt-1.5 font-mono">Video ID: {cam.id}</p>
-                    <div className="mt-3 flex items-center justify-between">
-                      <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-white border text-slate-700 shadow-2xs">
-                        {cam.status}
+
+                    <div className="mt-4 pt-2 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-xs font-semibold uppercase px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
+                        {cam.status || "Ready"}
                       </span>
-                      <span className="text-[11px] font-semibold text-blue-600 flex items-center gap-1">
-                        <Play size={10} /> View Feed
+                      <span className={`text-xs font-semibold flex items-center gap-1.5 ${isSelected ? "text-blue-700" : "text-slate-600"}`}>
+                        <Play size={11} className={isSelected ? "text-blue-600" : "text-slate-400"} /> 
+                        {isSelected ? "Active Stream" : "Select Clip"}
                       </span>
                     </div>
                   </button>
@@ -479,24 +518,24 @@ function HomeContent() {
         </section>
 
         <aside className="space-y-5">
-          <article className="rounded-lg border border-slate-200 bg-slate-950 p-5 text-white shadow-lg overflow-hidden relative">
-            <div className="flex items-center justify-between relative z-10">
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm text-slate-300">
+                <p className="text-xs font-medium text-slate-500">
                   {activeEvidenceEvent ? "Evidence Verification Stream" : "Live Processed Feed"}
                 </p>
-                <h2 className="mt-1 text-xl font-semibold">
-                   {selectedVideo ? (selectedVideo.name || selectedVideo.filename) : "No dataset video selected"}
+                <h2 className="mt-1 text-lg font-semibold text-slate-900">
+                   {selectedVideo ? (selectedVideo.name || formatVideoTitle(selectedVideo.filename)) : "No dataset video selected"}
                 </h2>
               </div>
-              <ShieldCheck className="text-emerald-400" size={26} />
+              <ShieldCheck className="text-emerald-600" size={24} />
             </div>
             
-            <div className="mt-5 relative z-10 w-full rounded-xl overflow-hidden shadow-2xl border border-slate-800">
+            <div className="relative w-full rounded-xl overflow-hidden shadow-sm border border-slate-200 bg-slate-950">
               <VideoPlayer 
                 videoId={selectedVideo?.id}
-                title={selectedVideo ? (selectedVideo.name || selectedVideo.filename) : "Dataset video"}
-                tag={activeEvidenceEvent ? `Event: ${activeEvidenceEvent.type}` : "YOLO + ByteTrack annotations"}
+                title={selectedVideo ? (selectedVideo.name || formatVideoTitle(selectedVideo.filename)) : "Dataset video"}
+                tag={activeEvidenceEvent ? `Event: ${activeEvidenceEvent.type}` : "YOLO + ByteTrack"}
                 activeEvidenceEvent={activeEvidenceEvent}
                 onClearEvidence={() => setActiveEvidenceEvent(null)}
               />
@@ -504,18 +543,18 @@ function HomeContent() {
 
             <button 
               onClick={fetchAIDailyReport}
-              className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-white text-sm font-semibold text-slate-950 hover:bg-slate-100 transition relative z-10 cursor-pointer"
+              className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium transition cursor-pointer shadow-xs"
             >
-              <Sparkles size={17} className="text-blue-600" />
+              <Sparkles size={16} className="text-blue-400" />
               AI Daily Incident Report
             </button>
           </article>
 
-          <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-lg font-semibold">Recent Alerts</h2>
-                <p className="text-xs text-slate-400">Click &apos;View Evidence&apos; to seek video</p>
+                <h2 className="text-base font-semibold text-slate-900">Recent Alerts</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Click &apos;View Evidence&apos; to seek video</p>
               </div>
               <Link href="/alerts" className="text-xs font-semibold text-blue-600 hover:underline">
                 View All →
@@ -527,10 +566,10 @@ function HomeContent() {
                 return (
                   <div 
                     key={idx} 
-                    className={`p-3.5 rounded-xl border transition flex flex-col gap-2 ${
+                    className={`p-3.5 rounded-xl border transition flex flex-col gap-2.5 ${
                       isSelectedEv 
                         ? "bg-red-50/80 border-red-300 ring-2 ring-red-400/30" 
-                        : "bg-slate-50 border-slate-100 hover:border-slate-200"
+                        : "bg-slate-50/70 border-slate-200 hover:border-slate-300"
                     }`}
                   >
                     <div className="flex items-start gap-2.5">
@@ -538,27 +577,27 @@ function HomeContent() {
                         {event.risk === "High" ? <AlertTriangle size={16} className="text-red-600" /> : <Clock3 size={16} className="text-slate-500" />}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-bold text-slate-900">{event.type}</span>
                           <RiskBadge risk={event.risk} />
                         </div>
-                        <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">{event.note}</p>
+                        <p className="text-xs leading-relaxed text-slate-600 line-clamp-2 mt-1">{event.note}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 mt-1">
-                      <span className="text-[10px] text-slate-500 font-medium">
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/80 mt-1">
+                      <span className="text-xs text-slate-500 font-medium">
                         {event.zone} • {event.time}
                       </span>
                       <button
                         onClick={() => handleViewEvidence(event)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
                           isSelectedEv
-                            ? "bg-red-600 text-white"
-                            : "bg-slate-900 hover:bg-red-600 text-white"
+                            ? "bg-red-600 text-white hover:bg-red-700"
+                            : "bg-blue-600 hover:bg-blue-700 text-white"
                         }`}
                       >
-                        <Play size={11} /> View Evidence
+                        <Play size={12} /> View Evidence
                       </button>
                     </div>
                   </div>
