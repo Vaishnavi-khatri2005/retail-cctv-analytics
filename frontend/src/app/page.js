@@ -245,7 +245,11 @@ function HomeContent() {
 
   return (
     <>
-      <UploadModal isOpen={isUploadOpen} onClose={() => { setIsUploadOpen(false); fetchData(); }} />
+      <UploadModal 
+        isOpen={isUploadOpen} 
+        onClose={() => { setIsUploadOpen(false); fetchData(); }} 
+        onAnalysisComplete={handleAnalysisComplete} 
+      />
 
       {/* 🤖 AI Executive Summary Modal */}
       {showSummaryModal && dailySummary && (

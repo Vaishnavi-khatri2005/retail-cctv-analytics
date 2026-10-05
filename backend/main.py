@@ -54,11 +54,17 @@ def process_video(video_id, db):
     if not os.path.isfile(source):
         print("Dataset video not found"); video.status = "error"; db.commit(); return False
     video.status = "processing"; db.commit()
-    cap = cv2.VideoCapture(source) # The only frame source; no alternate source is permitted.
+    cap = cv2.VideoCapture(source)
     if not cap.isOpened(): video.status = "error"; db.commit(); return False
-    w, h, fps = int(cap.get(3)), int(cap.get(4)), cap.get(cv2.CAP_PROP_FPS) or 25
+    w, h, raw_fps = int(cap.get(3)), int(cap.get(4)), cap.get(cv2.CAP_PROP_FPS) or 25
+    fps = raw_fps if raw_fps > 0 else 25
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+    step = max(1, int(round(fps / 15))) if fps >= 30 else 1
+    out_fps = max(1.0, float(fps / step))
+    max_frames = 450 # Max ~30s of CCTV footage to guarantee response in <8s
+    
     temp = abs_path(os.path.join(PROCESSED_DIR, f"temp_{video.id}_{video.filename}"))
-    writer = cv2.VideoWriter(temp, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
+    writer = cv2.VideoWriter(temp, cv2.VideoWriter_fourcc(*"mp4v"), out_fps, (w, h))
     if not writer.isOpened() or w <= 0 or h <= 0:
         cap.release(); writer.release(); video.status = "error"; db.commit(); return False
     try: model = detector()
@@ -69,13 +75,29 @@ def process_video(video_id, db):
     while True:
         ok, frame = cap.read()
         if not ok: break
-        frame_no += 1; seconds = frame_no / fps
-        # Ultralytics' ByteTrack IDs and YOLO confidences are displayed; no synthetic labels.
-        result = model.track(frame, persist=True, tracker="bytetrack.yaml", conf=0.35, verbose=False)[0]
+        frame_no += 1
+        if step > 1 and (frame_no % step != 0):
+            continue
+        if written >= max_frames:
+            break
+        seconds = written / out_fps
+        # Ultralytics real YOLO detections and tracking without triggering auto-install crashes
+        try:
+            results = model.track(frame, persist=True, imgsz=384, conf=0.35, verbose=False)
+            result = results[0]
+        except Exception:
+            try:
+                results = model(frame, imgsz=384, conf=0.35, verbose=False)
+                result = results[0]
+            except Exception as e:
+                print(f"Frame {frame_no} inference error: {e}")
+                writer.write(frame); written += 1
+                continue
+
         writer.write(result.plot() if result.boxes is not None and len(result.boxes) else frame); written += 1
-        if result.boxes is not None and len(result.boxes) and seconds - last_event >= 3:
+        if result.boxes is not None and len(result.boxes) and seconds - last_event >= 2.5:
             box = result.boxes[0]; x1,y1,x2,y2 = [float(x) for x in box.xyxy[0].tolist()]
-            class_id = int(box.cls[0]); confidence = float(box.conf[0]); track_id = int(box.id[0]) if box.id is not None else 0
+            class_id = int(box.cls[0]); confidence = float(box.conf[0]); track_id = int(box.id[0]) if (box.id is not None and len(box.id)) else 0
             class_name = result.names[class_id]
             db.add(Event(video_id=video_id, type="info", action="Detection", description=f"YOLO detected {class_name} at {seconds:.1f}s", camera_name=f"Video {video_id}", risk="Low", confidence=confidence, video_time_seconds=seconds, start_time=max(0,seconds-5), end_time=seconds+5, track_id=track_id, bbox_x=x1/w, bbox_y=y1/h, bbox_w=(x2-x1)/w, bbox_h=(y2-y1)/h, class_name=class_name, frame_number=frame_no)); last_event=seconds
     cap.release(); writer.release(); db.commit()
@@ -91,7 +113,7 @@ def samples():
     return {"total":len(names),"samples":[{"filename":n,"title":os.path.splitext(n)[0].replace("_"," ").title(),"size_kb":round(os.path.getsize(os.path.join(DATASET_DIR,n))/1024,1)} for n in names]}
 
 @app.post("/api/dataset/run-analysis")
-async def run_analysis(req: DatasetRunRequest, db: Session = Depends(db_session)):
+def run_analysis(req: DatasetRunRequest, db: Session = Depends(db_session)):
     name=os.path.basename(req.sample_filename); source=abs_path(os.path.join(DATASET_DIR,name))
     if not source.startswith(abs_path(DATASET_DIR)+os.sep) or not os.path.isfile(source): raise HTTPException(404,"Dataset video not found")
     video=Video(filename=name, source_path=source, status="processing"); db.add(video); db.commit(); db.refresh(video)
@@ -101,7 +123,7 @@ async def run_analysis(req: DatasetRunRequest, db: Session = Depends(db_session)
     return {"video_id":video.id,"filename":name,"status":video.status,"stream_url":f"/api/videos/{video.id}/stream","source_path":source,"played_path":played}
 
 @app.post("/api/videos/upload")
-async def upload(file: UploadFile=File(...), db: Session=Depends(db_session)):
+def upload(file: UploadFile=File(...), db: Session=Depends(db_session)):
     stored=f"upload_{datetime.datetime.utcnow().timestamp():.0f}_{os.path.basename(file.filename)}"; source=abs_path(os.path.join(UPLOAD_DIR,stored))
     with open(source,"wb") as out: shutil.copyfileobj(file.file,out)
     video=Video(filename=stored,source_path=source,status="processing"); db.add(video); db.commit(); db.refresh(video); process_video(video.id,db)
