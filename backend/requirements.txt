@@ -3,7 +3,8 @@ uvicorn
 pydantic
 sqlalchemy
 python-multipart
-opencv-python
+opencv-python-headless
 numpy
 imageio-ffmpeg
 ultralytics
+

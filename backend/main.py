@@ -28,8 +28,12 @@ def db_session():
 def detector():
     global _detector
     if _detector is None:
-        if not os.path.isfile(MODEL_PATH): raise RuntimeError(f"YOLO model not found: {MODEL_PATH}")
-        _detector = YOLO(MODEL_PATH)
+        if os.path.isfile(MODEL_PATH):
+            _detector = YOLO(MODEL_PATH)
+        elif os.path.isfile(os.path.join(CURRENT_DIR, "yolov8n.pt")):
+            _detector = YOLO(os.path.join(CURRENT_DIR, "yolov8n.pt"))
+        else:
+            _detector = YOLO("yolov8n.pt")
     return _detector
 def ffmpeg():
     try:
@@ -117,3 +121,12 @@ def stream(video_id:int,db:Session=Depends(db_session)):
     print(f"SOURCE VIDEO: {source}"); print(f"PLAYED VIDEO: {played}")
     if not os.path.isfile(played) or os.path.getsize(played)==0: raise HTTPException(404,"Dataset video not found")
     return FileResponse(played,media_type="video/mp4",headers={"Accept-Ranges":"bytes","Content-Disposition":"inline"})
+
+# Mount static frontend build if present (for single-container GCP Cloud Run deployment)
+from fastapi.staticfiles import StaticFiles
+FRONTEND_OUT = os.path.abspath(os.path.join(CURRENT_DIR, "..", "frontend", "out"))
+if not os.path.isdir(FRONTEND_OUT):
+    FRONTEND_OUT = os.path.abspath(os.path.join(CURRENT_DIR, "out"))
+if os.path.isdir(FRONTEND_OUT):
+    app.mount("/", StaticFiles(directory=FRONTEND_OUT, html=True), name="frontend")
+
