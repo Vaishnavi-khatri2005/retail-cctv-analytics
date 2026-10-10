@@ -1,7 +1,7 @@
 fastapi
 uvicorn
 pydantic
-sqlalchemy
+sqlalchemy==2.0.30
 python-multipart
 opencv-python-headless
 numpy
