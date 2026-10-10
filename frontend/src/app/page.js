@@ -8,6 +8,7 @@ import {
   Clock3,
   Download,
   Play,
+  ShieldAlert,
   ShieldCheck,
   ShoppingBag,
   Sparkles,
@@ -338,136 +339,122 @@ function HomeContent() {
         </div>
       </header>
 
-      <div className="grid gap-5 px-5 py-6 lg:grid-cols-[1fr_380px] lg:px-8">
-        <section className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                  <Users size={20} />
-                </div>
-                <ArrowUpRight size={18} className="text-slate-400" />
-              </div>
-              <p className="mt-4 text-xs font-medium text-slate-500">Visitors Today</p>
-              <div className="mt-1 flex items-end justify-between gap-3">
-                <strong className="text-3xl font-semibold text-slate-900">186</strong>
-                <span className="text-xs font-semibold text-emerald-600">+18%</span>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
-                  <AlertTriangle size={20} />
-                </div>
-                <ArrowUpRight size={18} className="text-slate-400" />
-              </div>
-              <p className="mt-4 text-xs font-medium text-slate-500">Security Alerts</p>
-              <div className="mt-1 flex items-end justify-between gap-3">
-                <strong className="text-3xl font-semibold text-slate-900">{highRiskCount}</strong>
-                <span className="text-xs font-semibold text-red-600">high risk</span>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-                  <Play size={20} />
-                </div>
-                <ArrowUpRight size={18} className="text-slate-400" />
-              </div>
-              <p className="mt-4 text-xs font-medium text-slate-500">Tracked Clips</p>
-              <div className="mt-1 flex items-end justify-between gap-3">
-                <strong className="text-3xl font-semibold text-slate-900">{videos.length || 4}</strong>
-                <span className="text-xs font-medium text-slate-500">in database</span>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                  <Camera size={20} />
-                </div>
-                <ArrowUpRight size={18} className="text-slate-400" />
-              </div>
-              <p className="mt-4 text-xs font-medium text-slate-500">Active Cameras</p>
-              <div className="mt-1 flex items-end justify-between gap-3">
-                <strong className="text-3xl font-semibold text-slate-900">04</strong>
-                <span className="text-xs font-semibold text-emerald-600">all online</span>
-              </div>
-            </article>
-          </div>
-
-          <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-base font-semibold text-slate-900">Hourly Footfall</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">People detected through entry and exit zones.</p>
-                </div>
-                <span className="rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-                  Live Data
-                </span>
-              </div>
-              <div className="mt-6 h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={footfallData}>
-                    <defs>
-                      <linearGradient id="footfall" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#2563eb" stopOpacity={0.32} />
-                        <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="time" tickLine={false} axisLine={false} stroke="#64748b" fontSize={12} />
-                    <YAxis tickLine={false} axisLine={false} stroke="#64748b" fontSize={12} />
-                    <Tooltip />
-                    <Area type="monotone" dataKey="visitors" stroke="#2563eb" strokeWidth={3} fill="url(#footfall)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-              <h2 className="text-base font-semibold text-slate-900">Zone Activity</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Dwell time and movement by shop area.</p>
-              <div className="mt-6 h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={zoneData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="zone" tickLine={false} axisLine={false} stroke="#64748b" fontSize={12} />
-                    <YAxis tickLine={false} axisLine={false} stroke="#64748b" fontSize={12} />
-                    <Tooltip />
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                      {zoneData.map((entry) => (
-                        <Cell key={entry.zone} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </article>
-          </div>
-
-          {/* 🎥 Pre-recorded CCTV Channel Database Selector */}
+      <div className="space-y-6 px-5 py-6 lg:px-8 max-w-7xl mx-auto">
+        {/* KPI Stat Cards */}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                  <VideoIcon size={18} className="text-blue-600" />
-                  Pre-Recorded CCTV Footage Database
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">Select any retail surveillance camera footage to inspect its live AI stream.</p>
+            <div className="flex items-center justify-between">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <Users size={20} />
               </div>
-              <Link 
-                href="/cameras"
-                className="text-xs font-semibold px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition"
-              >
-                Manage All Channels →
-              </Link>
+              <ArrowUpRight size={18} className="text-slate-400" />
+            </div>
+            <p className="mt-4 text-xs font-medium text-slate-500">Visitors Today</p>
+            <div className="mt-1 flex items-end justify-between gap-3">
+              <strong className="text-3xl font-semibold text-slate-900">186</strong>
+              <span className="text-xs font-semibold text-emerald-600">+18%</span>
+            </div>
+          </article>
+
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                <AlertTriangle size={20} />
+              </div>
+              <ArrowUpRight size={18} className="text-slate-400" />
+            </div>
+            <p className="mt-4 text-xs font-medium text-slate-500">Security Alerts</p>
+            <div className="mt-1 flex items-end justify-between gap-3">
+              <strong className="text-3xl font-semibold text-slate-900">{highRiskCount}</strong>
+              <span className="text-xs font-semibold text-red-600">high risk</span>
+            </div>
+          </article>
+
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+                <Play size={20} />
+              </div>
+              <ArrowUpRight size={18} className="text-slate-400" />
+            </div>
+            <p className="mt-4 text-xs font-medium text-slate-500">Tracked Clips</p>
+            <div className="mt-1 flex items-end justify-between gap-3">
+              <strong className="text-3xl font-semibold text-slate-900">{videos.length || 4}</strong>
+              <span className="text-xs font-medium text-slate-500">in database</span>
+            </div>
+          </article>
+
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <Camera size={20} />
+              </div>
+              <ArrowUpRight size={18} className="text-slate-400" />
+            </div>
+            <p className="mt-4 text-xs font-medium text-slate-500">Active Cameras</p>
+            <div className="mt-1 flex items-end justify-between gap-3">
+              <strong className="text-3xl font-semibold text-slate-900">04</strong>
+              <span className="text-xs font-semibold text-emerald-600">all online</span>
+            </div>
+          </article>
+        </div>
+
+        {/* 🎥 CENTERPIECE: CCTV SURVEILLANCE & AI VIDEO PLAYER */}
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          {/* Center Player Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md">
+                  {activeEvidenceEvent ? "Evidence Verification Playback" : "Live CCTV Surveillance Stream"}
+                </span>
+                <span className="text-xs text-slate-400 font-mono">H.264 • 1080p Real-time</span>
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 mt-1.5 flex items-center gap-2">
+                <VideoIcon size={20} className="text-blue-600 shrink-0" />
+                <span>
+                  {selectedVideo ? (selectedVideo.name || formatVideoTitle(selectedVideo.filename)) : "Main Retail Store CCTV Feed"}
+                </span>
+              </h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+            <div className="flex items-center gap-2.5 shrink-0">
+              <Link
+                href="/loss-prevention"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition text-xs font-semibold shadow-xs"
+              >
+                <ShieldAlert size={14} />
+                <span>Draw Geofence</span>
+              </Link>
+              <Link
+                href="/cameras"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition text-xs font-semibold shadow-xs"
+              >
+                <Camera size={14} />
+                <span>2x2 Video Wall</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Large Center Widescreen Video Player */}
+          <div className="relative w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-xl aspect-video max-h-[580px]">
+            <VideoPlayer 
+              videoId={selectedVideo?.id}
+              title={selectedVideo ? (selectedVideo.name || formatVideoTitle(selectedVideo.filename)) : "Dataset video"}
+              tag={activeEvidenceEvent ? `Incident: ${activeEvidenceEvent.type}` : "Ultralytics YOLOv8 + ByteTrack"}
+              activeEvidenceEvent={activeEvidenceEvent}
+              onClearEvidence={() => setActiveEvidenceEvent(null)}
+            />
+          </div>
+
+          {/* Quick-Switch Camera Selector Toolbar Directly Below Player */}
+          <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wide shrink-0">
+              Switch Active Camera:
+            </span>
+
+            <div className="flex flex-wrap items-center gap-2">
               {videos.map((cam) => {
                 const isSelected = selectedVideo && selectedVideo.id === cam.id;
                 const formattedTitle = formatVideoTitle(cam.filename);
@@ -475,8 +462,6 @@ function HomeContent() {
                   <button
                     key={cam.id}
                     type="button"
-                    aria-pressed={isSelected}
-                    aria-label={`Select CCTV footage: ${formattedTitle}`}
                     onClick={() => {
                       setActiveEvidenceEvent(null);
                       setSelectedVideo({ 
@@ -487,129 +472,235 @@ function HomeContent() {
                         status: cam.status 
                       });
                     }}
-                    className={`text-left p-4 pb-4.5 rounded-2xl border transition flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
-                      isSelected 
-                        ? "border-blue-600 bg-blue-50/70 ring-2 ring-blue-500/20 shadow-xs" 
-                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer border ${
+                      isSelected
+                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                        : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
                     }`}
                   >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-xs font-bold text-slate-900 leading-snug line-clamp-2">{formattedTitle}</span>
-                        {isSelected ? (
-                          <CheckCircle2 size={16} className="text-blue-600 shrink-0 mt-0.5" />
-                        ) : (
-                          <span className="text-slate-300 text-xs shrink-0 mt-0.5">#0{cam.id}</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500 truncate mt-1.5 font-mono">Video ID: {cam.id}</p>
-                    </div>
-
-                    <div className="mt-4 pt-2 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
-                        {cam.status || "Ready"}
-                      </span>
-                      <span className={`text-xs font-semibold flex items-center gap-1.5 ${isSelected ? "text-blue-700" : "text-slate-600"}`}>
-                        <Play size={11} className={isSelected ? "text-blue-600" : "text-slate-400"} /> 
-                        {isSelected ? "Active Stream" : "Select Clip"}
-                      </span>
-                    </div>
+                    <Play size={10} className={isSelected ? "text-white" : "text-blue-600"} />
+                    <span className="truncate max-w-[160px]">{formattedTitle}</span>
+                    <span className={`text-[10px] px-1 py-0.2 rounded font-mono ${isSelected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"}`}>
+                      #{cam.id}
+                    </span>
                   </button>
                 );
               })}
             </div>
-          </article>
+          </div>
         </section>
 
-        <aside className="space-y-5">
-          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-xs font-medium text-slate-500">
-                  {activeEvidenceEvent ? "Evidence Verification Stream" : "Live Processed Feed"}
-                </p>
-                <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                   {selectedVideo ? (selectedVideo.name || formatVideoTitle(selectedVideo.filename)) : "No dataset video selected"}
-                </h2>
-              </div>
-              <ShieldCheck className="text-emerald-600" size={24} />
-            </div>
-            
-            <div className="relative w-full rounded-xl overflow-hidden shadow-sm border border-slate-200 bg-slate-950">
-              <VideoPlayer 
-                videoId={selectedVideo?.id}
-                title={selectedVideo ? (selectedVideo.name || formatVideoTitle(selectedVideo.filename)) : "Dataset video"}
-                tag={activeEvidenceEvent ? `Event: ${activeEvidenceEvent.type}` : "YOLO + ByteTrack"}
-                activeEvidenceEvent={activeEvidenceEvent}
-                onClearEvidence={() => setActiveEvidenceEvent(null)}
-              />
-            </div>
-
-            <button 
-              onClick={fetchAIDailyReport}
-              className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium transition cursor-pointer shadow-xs"
-            >
-              <Sparkles size={16} className="text-blue-400" />
-              AI Daily Incident Report
-            </button>
-          </article>
-
-          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900">Recent Alerts</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Click &apos;View Evidence&apos; to seek video</p>
-              </div>
-              <Link href="/alerts" className="text-xs font-semibold text-blue-600 hover:underline">
-                View All →
-              </Link>
-            </div>
-            <div className="space-y-3">
-              {eventsData.slice(0, 4).map((event, idx) => {
-                const isSelectedEv = activeEvidenceEvent && activeEvidenceEvent.id === event.id;
-                return (
-                  <div 
-                    key={idx} 
-                    className={`p-3.5 rounded-xl border transition flex flex-col gap-2.5 ${
-                      isSelectedEv 
-                        ? "bg-red-50/80 border-red-300 ring-2 ring-red-400/30" 
-                        : "bg-slate-50/70 border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <div className="mt-0.5">
-                        {event.risk === "High" ? <AlertTriangle size={16} className="text-red-600" /> : <Clock3 size={16} className="text-slate-500" />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-bold text-slate-900">{event.type}</span>
-                          <RiskBadge risk={event.risk} />
-                        </div>
-                        <p className="text-xs leading-relaxed text-slate-600 line-clamp-2 mt-1">{event.note}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/80 mt-1">
-                      <span className="text-xs text-slate-500 font-medium">
-                        {event.zone} • {event.time}
-                      </span>
-                      <button
-                        onClick={() => handleViewEvidence(event)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
-                          isSelectedEv
-                            ? "bg-red-600 text-white hover:bg-red-700"
-                            : "bg-blue-600 hover:bg-blue-700 text-white"
-                        }`}
-                      >
-                        <Play size={12} /> View Evidence
-                      </button>
-                    </div>
+        {/* LOWER SECTION: GRID WITH FOOTAGE DATABASE, CHARTS & ALERTS */}
+        <div className="grid gap-6 lg:grid-cols-12">
+          {/* Left Column (7 cols): Analytics Charts & Footage Database */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* Analytics Charts */}
+            <div className="grid gap-5 sm:grid-cols-2">
+              <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-900">Hourly Footfall</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">Entry/exit visitor flow</p>
                   </div>
-                );
-              })}
+                  <span className="rounded-full bg-blue-50 border border-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                    Live
+                  </span>
+                </div>
+                <div className="mt-4 h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={footfallData}>
+                      <defs>
+                        <linearGradient id="footfall" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.32} />
+                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis dataKey="time" tickLine={false} axisLine={false} stroke="#64748b" fontSize={11} />
+                      <YAxis tickLine={false} axisLine={false} stroke="#64748b" fontSize={11} />
+                      <Tooltip />
+                      <Area type="monotone" dataKey="visitors" stroke="#2563eb" strokeWidth={2.5} fill="url(#footfall)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </article>
+
+              <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+                <h2 className="text-base font-semibold text-slate-900">Zone Activity</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Dwell time by department</p>
+                <div className="mt-4 h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={zoneData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis dataKey="zone" tickLine={false} axisLine={false} stroke="#64748b" fontSize={11} />
+                      <YAxis tickLine={false} axisLine={false} stroke="#64748b" fontSize={11} />
+                      <Tooltip />
+                      <Bar dataKey="value" radius={[5, 5, 0, 0]}>
+                        {zoneData.map((entry) => (
+                          <Cell key={entry.zone} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </article>
             </div>
-          </article>
-        </aside>
+
+            {/* Pre-recorded CCTV Channel Database Selector */}
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                    <VideoIcon size={18} className="text-blue-600" />
+                    Pre-Recorded CCTV Channel Database
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Click any channel to launch in the center viewer.</p>
+                </div>
+                <Link 
+                  href="/cameras"
+                  className="text-xs font-semibold px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition"
+                >
+                  Manage Channels →
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {videos.map((cam) => {
+                  const isSelected = selectedVideo && selectedVideo.id === cam.id;
+                  const formattedTitle = formatVideoTitle(cam.filename);
+                  return (
+                    <button
+                      key={cam.id}
+                      type="button"
+                      aria-pressed={isSelected}
+                      aria-label={`Select CCTV footage: ${formattedTitle}`}
+                      onClick={() => {
+                        setActiveEvidenceEvent(null);
+                        setSelectedVideo({ 
+                          id: cam.id, 
+                          filename: cam.filename, 
+                          name: formattedTitle, 
+                          videoUrl: `${BACKEND_URL}/api/videos/${cam.id}/stream`, 
+                          status: cam.status 
+                        });
+                        window.scrollTo({ top: 120, behavior: "smooth" });
+                      }}
+                      className={`text-left p-4 pb-4.5 rounded-2xl border transition flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+                        isSelected 
+                          ? "border-blue-600 bg-blue-50/70 ring-2 ring-blue-500/20 shadow-xs" 
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-900 leading-snug line-clamp-2">{formattedTitle}</span>
+                          {isSelected ? (
+                            <CheckCircle2 size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <span className="text-slate-400 text-xs shrink-0 mt-0.5 font-mono">#0{cam.id}</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 truncate mt-1.5 font-mono">Channel ID: {cam.id}</p>
+                      </div>
+
+                      <div className="mt-4 pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-xs font-semibold uppercase px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
+                          {cam.status || "Ready"}
+                        </span>
+                        <span className={`text-xs font-semibold flex items-center gap-1.5 ${isSelected ? "text-blue-700" : "text-slate-600"}`}>
+                          <Play size={11} className={isSelected ? "text-blue-600" : "text-slate-400"} /> 
+                          {isSelected ? "Active Feed" : "Load in Center"}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </article>
+          </div>
+
+          {/* Right Column (5 cols): Recent Alerts & Evidence Verification */}
+          <div className="lg:col-span-5 space-y-6">
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                    <AlertTriangle size={18} className="text-red-600" />
+                    Security Incident Triggers
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Click &apos;View Evidence&apos; to seek center video</p>
+                </div>
+                <Link href="/alerts" className="text-xs font-semibold text-blue-600 hover:underline">
+                  All Alerts ({eventsData.length}) →
+                </Link>
+              </div>
+
+              <div className="space-y-3">
+                {eventsData.slice(0, 5).map((event, idx) => {
+                  const isSelectedEv = activeEvidenceEvent && activeEvidenceEvent.id === event.id;
+                  return (
+                    <div 
+                      key={idx} 
+                      className={`p-3.5 rounded-xl border transition flex flex-col gap-2.5 ${
+                        isSelectedEv 
+                          ? "bg-red-50/80 border-red-300 ring-2 ring-red-400/30" 
+                          : "bg-slate-50/70 border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div className="mt-0.5">
+                          {event.risk === "High" ? <AlertTriangle size={16} className="text-red-600" /> : <Clock3 size={16} className="text-slate-500" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-slate-900">{event.type}</span>
+                            <RiskBadge risk={event.risk} />
+                          </div>
+                          <p className="text-xs leading-relaxed text-slate-600 line-clamp-2 mt-1">{event.note}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/80 mt-1">
+                        <span className="text-xs text-slate-500 font-medium">
+                          {event.zone} • {event.time}
+                        </span>
+                        <button
+                          onClick={() => handleViewEvidence(event)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                            isSelectedEv
+                              ? "bg-red-600 text-white hover:bg-red-700"
+                              : "bg-blue-600 hover:bg-blue-700 text-white"
+                          }`}
+                        >
+                          <Play size={12} /> View Evidence
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </article>
+
+            {/* AI Executive Summary Card */}
+            <article className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/60 to-indigo-50/40 p-5 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-blue-600" />
+                  AI Daily Loss Prevention Brief
+                </span>
+                <button
+                  onClick={fetchAIDailyReport}
+                  className="text-xs font-semibold text-blue-700 hover:underline cursor-pointer"
+                >
+                  Generate Brief →
+                </button>
+              </div>
+              <p className="text-xs text-slate-700 leading-relaxed">
+                YOLO tracked <strong>186 store visitors</strong> today. <strong>{highRiskCount} high-risk incidents</strong> were flagged with 10-second proof clips captured for security audit.
+              </p>
+            </article>
+          </div>
+        </div>
       </div>
     </>
   );

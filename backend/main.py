@@ -149,6 +149,26 @@ from fastapi.staticfiles import StaticFiles
 FRONTEND_OUT = os.path.abspath(os.path.join(CURRENT_DIR, "..", "frontend", "out"))
 if not os.path.isdir(FRONTEND_OUT):
     FRONTEND_OUT = os.path.abspath(os.path.join(CURRENT_DIR, "out"))
+
 if os.path.isdir(FRONTEND_OUT):
-    app.mount("/", StaticFiles(directory=FRONTEND_OUT, html=True), name="frontend")
+    next_static = os.path.join(FRONTEND_OUT, "_next")
+    if os.path.isdir(next_static):
+        app.mount("/_next", StaticFiles(directory=next_static), name="next_static")
+
+    @app.get("/{full_path:path}")
+    def serve_frontend_page(full_path: str):
+        if not full_path:
+            return FileResponse(os.path.join(FRONTEND_OUT, "index.html"))
+        target = os.path.join(FRONTEND_OUT, full_path)
+        if os.path.isfile(target):
+            return FileResponse(target)
+        if os.path.isfile(target + ".html"):
+            return FileResponse(target + ".html")
+        index_target = os.path.join(target, "index.html")
+        if os.path.isfile(index_target):
+            return FileResponse(index_target)
+        index_html = os.path.join(FRONTEND_OUT, "index.html")
+        if os.path.isfile(index_html):
+            return FileResponse(index_html)
+        raise HTTPException(404, "Page not found")
 

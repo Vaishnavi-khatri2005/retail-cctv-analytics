@@ -1,7 +1,7 @@
 # 🎥 RetailVision AI — Smart Retail CCTV Search & YOLO Video Analytics
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-HTTPS%20Online-2563eb?style=for-the-badge&logo=cloudflare&logoColor=white)](https://monster-liquid-columnists-nissan.trycloudflare.com)
-[![API Docs](https://img.shields.io/badge/API%20Docs-Swagger%20UI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://monster-liquid-columnists-nissan.trycloudflare.com/docs)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-HTTPS%20Online-2563eb?style=for-the-badge&logo=cloudflare&logoColor=white)](https://def-col-vegetables-gba.trycloudflare.com)
+[![API Docs](https://img.shields.io/badge/API%20Docs-Swagger%20UI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://def-col-vegetables-gba.trycloudflare.com/docs)
 [![GCP Cloud Run](https://img.shields.io/badge/Deploy-GCP%20Cloud%20Run-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)](https://cloud.google.com/run)
 [![YOLOv8](https://img.shields.io/badge/AI%20Detector-YOLOv8-FF6F00?style=for-the-badge&logo=ultralytics&logoColor=white)](https://github.com/ultralytics/ultralytics)
 [![Next.js 16](https://img.shields.io/badge/Frontend-Next.js%2016-000000?style=for-the-badge&logo=next.js)](https://nextjs.org/)
@@ -17,8 +17,8 @@ Powered by **Ultralytics YOLOv8**, **ByteTrack Multi-Object Tracking**, **OpenCV
 
 | Service | Link | Description |
 | :--- | :--- | :--- |
-| **🌐 Interactive Dashboard** | **[monster-liquid-columnists-nissan.trycloudflare.com](https://monster-liquid-columnists-nissan.trycloudflare.com)** | Full dashboard with live YOLO video playback |
-| **📖 REST & Streaming API** | **[Swagger / OpenAPI Documentation](https://monster-liquid-columnists-nissan.trycloudflare.com/docs)** | Interactive API test console & endpoints |
+| **🌐 Interactive Dashboard** | **[def-col-vegetables-gba.trycloudflare.com](https://def-col-vegetables-gba.trycloudflare.com)** | Full dashboard with live YOLO video playback |
+| **📖 REST & Streaming API** | **[Swagger / OpenAPI Documentation](https://def-col-vegetables-gba.trycloudflare.com/docs)** | Interactive API test console & endpoints |
 | **🎥 Video Stream Endpoint** | `GET /api/videos/{video_id}/stream` | Direct H.264 byte-range video streaming |
 
 ---

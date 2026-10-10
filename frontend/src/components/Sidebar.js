@@ -2,10 +2,55 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { BarChart3, ChevronLeft, ChevronRight, Eye, House, Menu, MonitorPlay, Search, Settings, Siren, X } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, Eye, House, LayoutGrid, Menu, Search, Settings, ShieldAlert, Siren, X } from "lucide-react";
 
-const items = [{href:"/",label:"Dashboard",icon:House},{href:"/cameras",label:"CCTV Monitoring",icon:MonitorPlay},{href:"/alerts",label:"Incidents / Alerts",icon:Siren},{href:"/#analytics",label:"Analytics",icon:BarChart3},{href:"/search",label:"AI Search",icon:Search},{href:"/settings",label:"Settings",icon:Settings}];
-function Navigation({collapsed,onNavigate}) { const pathname=usePathname(); return <nav className="mt-7 flex flex-1 flex-col gap-1.5 px-3" aria-label="Primary navigation">{items.map(({href,label,icon:Icon})=>{const active=href==="/"?pathname==="/":pathname===href; return <Link key={label} href={href} onClick={onNavigate} title={collapsed?label:undefined} className={`group relative flex h-11 items-center rounded-xl px-3 text-sm font-medium transition-colors ${active?"bg-blue-600 text-white shadow-md shadow-blue-600/20":"text-slate-500 hover:bg-slate-100 hover:text-slate-950"}`}><Icon size={20} className="shrink-0"/><span className={`ml-3 whitespace-nowrap transition-all duration-200 ${collapsed?"pointer-events-none w-0 overflow-hidden opacity-0":"w-auto opacity-100"}`}>{label}</span>{collapsed&&<span className="pointer-events-none absolute left-[calc(100%+10px)] z-50 hidden rounded-md bg-slate-900 px-2 py-1 text-xs whitespace-nowrap text-white shadow-lg group-hover:block">{label}</span>}</Link>})}</nav> }
+const items = [
+  { href: "/", label: "Dashboard", icon: House },
+  { href: "/cameras", label: "Multi-Cam & Ingestion", icon: LayoutGrid, tag: "Live" },
+  { href: "/loss-prevention", label: "Loss Prevention", icon: ShieldAlert, tag: "Security" },
+  { href: "/alerts", label: "Incidents / Alerts", icon: Siren },
+  { href: "/#analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/search", label: "AI Search", icon: Search },
+  { href: "/settings", label: "Settings", icon: Settings }
+];
+function Navigation({collapsed,onNavigate}) { 
+  const pathname=usePathname(); 
+  return (
+    <nav className="mt-7 flex flex-1 flex-col gap-1.5 px-3" aria-label="Primary navigation">
+      {items.map(({href,label,icon:Icon,tag})=>{
+        const active=href==="/"?pathname==="/":pathname===href; 
+        return (
+          <Link 
+            key={label} 
+            href={href} 
+            onClick={onNavigate} 
+            title={collapsed?label:undefined} 
+            className={`group relative flex h-11 items-center justify-between rounded-xl px-3 text-sm font-medium transition-colors ${
+              active?"bg-blue-600 text-white shadow-md shadow-blue-600/20":"text-slate-500 hover:bg-slate-100 hover:text-slate-950"
+            }`}
+          >
+            <div className="flex items-center min-w-0">
+              <Icon size={20} className="shrink-0"/>
+              <span className={`ml-3 whitespace-nowrap transition-all duration-200 ${collapsed?"pointer-events-none w-0 overflow-hidden opacity-0":"w-auto opacity-100"}`}>
+                {label}
+              </span>
+            </div>
+            {!collapsed && tag && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                active 
+                  ? "bg-white/20 text-white" 
+                  : tag === "Security" ? "bg-red-50 text-red-600 border border-red-200/60" : "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
+              }`}>
+                {tag}
+              </span>
+            )}
+            {collapsed&&<span className="pointer-events-none absolute left-[calc(100%+10px)] z-50 hidden rounded-md bg-slate-900 px-2 py-1 text-xs whitespace-nowrap text-white shadow-lg group-hover:block">{label}</span>}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
 export default function Sidebar() {
   const [collapsed,setCollapsed]=useState(false),[mobileOpen,setMobileOpen]=useState(false);
   useEffect(()=>setCollapsed(localStorage.getItem("retail-sidebar-collapsed")==="true"),[]);
