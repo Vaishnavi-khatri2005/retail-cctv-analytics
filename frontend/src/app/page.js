@@ -74,6 +74,7 @@ function HomeContent() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [eventsData, setEventsData] = useState([]);
   const [footfallData, setFootfallData] = useState(initialFootfallData);
+  const [currentZoneData, setCurrentZoneData] = useState(zoneData);
   const [videos, setVideos] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [activeEvidenceEvent, setActiveEvidenceEvent] = useState(null);
@@ -134,10 +135,11 @@ function HomeContent() {
 
   const fetchData = async () => {
     try {
-      const [eventsRes, videosRes, analyticsRes] = await Promise.all([
+      const [eventsRes, videosRes, analyticsRes, zonesRes] = await Promise.all([
         fetch(`${BACKEND_URL}/api/events`).catch(() => null),
         fetch(`${BACKEND_URL}/api/videos`).catch(() => null),
-        fetch(`${BACKEND_URL}/api/analytics/footfall`).catch(() => null)
+        fetch(`${BACKEND_URL}/api/analytics/footfall`).catch(() => null),
+        fetch(`${BACKEND_URL}/api/analytics/zones`).catch(() => null)
       ]);
 
       if (eventsRes && eventsRes.ok) {
@@ -196,6 +198,13 @@ function HomeContent() {
            }));
            setFootfallData(mappedAnalytics);
          }
+      }
+
+      if (zonesRes && zonesRes.ok) {
+        const data = await zonesRes.json();
+        if (data && data.length > 0) {
+          setCurrentZoneData(data);
+        }
       }
     } catch (err) {
       console.warn('Backend unavailable; no video fallback is used:', err);
@@ -400,9 +409,9 @@ function HomeContent() {
         </div>
 
         {/* 🎥 CENTERPIECE: CCTV SURVEILLANCE & AI VIDEO PLAYER */}
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 lg:p-6 shadow-sm">
           {/* Center Player Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-3 border-b border-slate-100">
             <div>
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -411,15 +420,15 @@ function HomeContent() {
                 </span>
                 <span className="text-xs text-slate-400 font-mono">H.264 • 1080p Real-time</span>
               </div>
-              <h2 className="text-xl font-bold text-slate-900 mt-1.5 flex items-center gap-2">
-                <VideoIcon size={20} className="text-blue-600 shrink-0" />
+              <h2 className="text-lg lg:text-xl font-bold text-slate-900 mt-1 flex items-center gap-2">
+                <VideoIcon size={18} className="text-blue-600 shrink-0" />
                 <span>
                   {selectedVideo ? (selectedVideo.name || formatVideoTitle(selectedVideo.filename)) : "Main Retail Store CCTV Feed"}
                 </span>
               </h2>
             </div>
 
-            <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <Link
                 href="/loss-prevention"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition text-xs font-semibold shadow-xs"
@@ -437,24 +446,31 @@ function HomeContent() {
             </div>
           </div>
 
-          {/* Large Center Widescreen Video Player */}
-          <div className="relative w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-xl aspect-video max-h-[580px]">
-            <VideoPlayer 
-              videoId={selectedVideo?.id}
-              title={selectedVideo ? (selectedVideo.name || formatVideoTitle(selectedVideo.filename)) : "Dataset video"}
-              tag={activeEvidenceEvent ? `Incident: ${activeEvidenceEvent.type}` : "Ultralytics YOLOv8 + ByteTrack"}
-              activeEvidenceEvent={activeEvidenceEvent}
-              onClearEvidence={() => setActiveEvidenceEvent(null)}
-            />
+          {/* Compact Centered Widescreen Video Player */}
+          <div className="mx-auto max-w-4xl">
+            <div className="relative w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-lg aspect-video max-h-[420px]">
+              <VideoPlayer 
+                videoId={selectedVideo?.id}
+                title={selectedVideo ? (selectedVideo.name || formatVideoTitle(selectedVideo.filename)) : "Dataset video"}
+                tag={activeEvidenceEvent ? `Incident: ${activeEvidenceEvent.type}` : "Ultralytics YOLOv8 + ByteTrack"}
+                activeEvidenceEvent={activeEvidenceEvent}
+                onClearEvidence={() => setActiveEvidenceEvent(null)}
+              />
+            </div>
           </div>
 
-          {/* Quick-Switch Camera Selector Toolbar Directly Below Player */}
-          <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wide shrink-0">
-              Switch Active Camera:
-            </span>
+          {/* Quick-Switch Camera Selector Toolbar Directly Below Player with Tidy Scrollable Row */}
+          <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                Active Feed:
+              </span>
+              <span className="text-xs font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md font-medium">
+                {videos.length} Streams
+              </span>
+            </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full sm:max-w-2xl scrollbar-thin">
               {videos.map((cam) => {
                 const isSelected = selectedVideo && selectedVideo.id === cam.id;
                 const formattedTitle = formatVideoTitle(cam.filename);
@@ -472,14 +488,14 @@ function HomeContent() {
                         status: cam.status 
                       });
                     }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer border ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 shrink-0 cursor-pointer border ${
                       isSelected
-                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                        ? "bg-blue-600 text-white border-blue-600 shadow-xs font-semibold"
                         : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
                     }`}
                   >
-                    <Play size={10} className={isSelected ? "text-white" : "text-blue-600"} />
-                    <span className="truncate max-w-[160px]">{formattedTitle}</span>
+                    <Play size={9} className={isSelected ? "text-white" : "text-blue-600"} />
+                    <span className="truncate max-w-[130px]">{formattedTitle}</span>
                     <span className={`text-[10px] px-1 py-0.2 rounded font-mono ${isSelected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"}`}>
                       #{cam.id}
                     </span>
@@ -530,14 +546,14 @@ function HomeContent() {
                 <p className="text-xs text-slate-500 mt-0.5">Dwell time by department</p>
                 <div className="mt-4 h-56">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={zoneData}>
+                    <BarChart data={currentZoneData && currentZoneData.length > 0 ? currentZoneData : zoneData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                       <XAxis dataKey="zone" tickLine={false} axisLine={false} stroke="#64748b" fontSize={11} />
                       <YAxis tickLine={false} axisLine={false} stroke="#64748b" fontSize={11} />
                       <Tooltip />
                       <Bar dataKey="value" radius={[5, 5, 0, 0]}>
-                        {zoneData.map((entry) => (
-                          <Cell key={entry.zone} fill={entry.color} />
+                        {(currentZoneData && currentZoneData.length > 0 ? currentZoneData : zoneData).map((entry) => (
+                          <Cell key={entry.zone} fill={entry.color || "#2563eb"} />
                         ))}
                       </Bar>
                     </BarChart>
