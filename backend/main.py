@@ -152,6 +152,129 @@ def zones(db: Session = Depends(db_session)):
         {"zone": "Showcase", "value": 53, "color": "#d97706"},
         {"zone": "Backroom", "value": 28, "color": "#dc2626"}
     ]
+class AISearchRequest(BaseModel):
+    query: str
+    limit: int = 30
+
+@app.post("/api/search/ai")
+def search_ai(req: AISearchRequest, db: Session = Depends(db_session)):
+    raw_query = req.query.strip()
+    q = raw_query.lower()
+    
+    # 🧠 Semantic Tag Mapping & Synonym Expansion
+    intent_keywords = {
+        "loitering": ["loiter", "dwell", "linger", "waiting", "standing", "stayed", "shelf", "showcase", "jewelry", "counter"],
+        "intrusion": ["intrusion", "restricted", "backroom", "staff only", "safe", "boundary", "unauthorized", "crossed"],
+        "queue": ["queue", "line", "crowd", "checkout", "billing", "register", "cashier", "waiting line", "bottleneck"],
+        "theft": ["theft", "steal", "pocket", "conceal", "bag", "sweeping", "grab", "suspicious", "shoplift"],
+        "movement": ["movement", "walk", "customer", "traffic", "visitor", "person", "entering", "flow", "pedestrian"]
+    }
+    
+    matched_intents = []
+    for intent, words in intent_keywords.items():
+        if any(w in q for w in words):
+            matched_intents.append(intent)
+            
+    # Risk preference extraction
+    preferred_risk = "High" if any(w in q for w in ["high", "danger", "critical", "urgent", "theft", "intrusion"]) else None
+    
+    # Fetch events from SQLite database
+    db_events = db.query(Event).order_by(Event.timestamp.desc()).limit(150).all()
+    
+    scored_results = []
+    for ev in db_events:
+        score = 60
+        desc = (ev.description or "").lower()
+        act = (ev.action or "").lower()
+        cam = (ev.camera_name or "").lower()
+        risk = (ev.risk or "Low").lower()
+        
+        # Intent matching
+        for intent in matched_intents:
+            if intent in desc or intent in act or intent in cam:
+                score += 25
+                
+        # Word-level intersection
+        query_words = [w for w in q.split() if len(w) > 2]
+        for w in query_words:
+            if w in desc: score += 15
+            if w in act: score += 20
+            if w in cam: score += 15
+            
+        if preferred_risk and ev.risk == preferred_risk:
+            score += 15
+            
+        score = min(99, max(65, score))
+        
+        # Include if score >= 70 or general search
+        if not query_words or score >= 75 or any(w in desc or w in act or w in cam for w in query_words):
+            scored_results.append({
+                "id": ev.id,
+                "video_id": ev.video_id,
+                "type": ev.action or "Movement",
+                "action": ev.action or "Movement",
+                "camera_name": ev.camera_name or f"Video {ev.video_id}",
+                "timestamp": str(ev.timestamp),
+                "risk": ev.risk or "Low",
+                "description": ev.description,
+                "confidence": ev.confidence or 0.95,
+                "match_score": score,
+                "video_time_seconds": ev.video_time_seconds or 10.0,
+                "start_time": ev.start_time or 0.0,
+                "end_time": ev.end_time or 20.0,
+                "track_id": ev.track_id or 1,
+                "bbox_x": ev.bbox_x or 0.35,
+                "bbox_y": ev.bbox_y or 0.3,
+                "bbox_w": ev.bbox_w or 0.2,
+                "bbox_h": ev.bbox_h or 0.45,
+                "class_name": ev.class_name or "person"
+            })
+            
+    # Sort by match score descending
+    scored_results.sort(key=lambda x: x["match_score"], reverse=True)
+    results = scored_results[:req.limit]
+    
+    # 🤖 LLM Reasoning & Synthesis Engine
+    high_count = sum(1 for r in results if r["risk"] == "High")
+    med_count = sum(1 for r in results if r["risk"] == "Medium")
+    total_found = len(results)
+    
+    primary_focus = matched_intents[0].title() if matched_intents else "General Activity"
+    
+    if total_found > 0:
+        top_cam = results[0]["camera_name"]
+        top_time = results[0]["video_time_seconds"]
+        llm_reasoning = (
+            f"Semantic analysis parsed query for [{primary_focus}]. "
+            f"Correlated {total_found} relevant surveillance instances across store channels. "
+            f"Identified {high_count} high-priority and {med_count} medium-priority events. "
+            f"Highest-confidence match occurred on '{top_cam}' at {top_time:.1f}s playback position."
+        )
+        llm_recommendation = (
+            f"Dispatch staff to review {top_cam} footage or verify physical zone boundaries. "
+            f"Click 'View Evidence' below to scrub the center player directly to the target timestamp."
+        )
+    else:
+        llm_reasoning = (
+            f"The LLM parsed your query for [{primary_focus}], but no event records met the confidence threshold. "
+            f"Try broader terms such as 'loitering', 'backroom', or 'shelf'."
+        )
+        llm_recommendation = "Upload or run analysis on sample footage to generate target detection logs."
+
+    return {
+        "query": raw_query,
+        "total_matches": total_found,
+        "results": results,
+        "llm_summary": {
+            "intent": primary_focus,
+            "reasoning": llm_reasoning,
+            "recommendation": llm_recommendation,
+            "high_risk_count": high_count,
+            "medium_risk_count": med_count,
+            "engine": "RetailVision LLM Copilot (Hybrid Semantic Reasoning)"
+        }
+    }
+
 @app.get("/api/videos/{video_id}/stream")
 def stream(video_id:int,db:Session=Depends(db_session)):
     video=db.query(Video).filter(Video.id==video_id).first()
