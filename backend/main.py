@@ -1,5 +1,5 @@
-"""CCTV API. Processed playback is derived only from its recorded source file."""
-import datetime, os, shutil, subprocess, sys
+import datetime, json, os, re, shutil, subprocess, sys
+from typing import Optional
 import cv2
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,6 +7,23 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from ultralytics import YOLO
+
+# Load local .env file if present without overriding existing system env
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # Minimal fallback dotenv reader if python-dotenv is not installed
+    env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
+    if os.path.isfile(env_file):
+        with open(env_file, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k, v = k.strip(), v.strip().strip('"').strip("'")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, CURRENT_DIR)
@@ -156,58 +173,245 @@ class AISearchRequest(BaseModel):
     query: str
     limit: int = 30
 
+class ParsedSearchFilters(BaseModel):
+    intent: str = "General Activity"
+    action: Optional[str] = None
+    camera_name: Optional[str] = None
+    target_object: Optional[str] = None
+    time_window_start: Optional[str] = None
+    time_window_end: Optional[str] = None
+    risk_level: Optional[str] = None
+    keywords: list[str] = []
+    unsupported_criteria: Optional[str] = None
+
+def get_gemini_client():
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key or api_key == "your_gemini_api_key_here":
+        return None
+    try:
+        from google import genai
+        return genai.Client(api_key=api_key)
+    except Exception as e:
+        print(f"Notice: Could not initialize Gemini client: {e}")
+        return None
+
+def parse_query_with_gemini(client, raw_query: str) -> Optional[ParsedSearchFilters]:
+    try:
+        prompt = (
+            "You are a structured parser for a retail surveillance search system.\n"
+            "Analyze the user's natural language CCTV query and output ONLY a JSON object conforming to this schema:\n"
+            "{\n"
+            "  \"intent\": \"Loitering\" | \"Intrusion\" | \"Queue\" | \"Theft\" | \"Movement\" | \"General Activity\",\n"
+            "  \"action\": \"Loitering\" | \"Intrusion\" | \"Queue\" | \"Theft\" | \"Movement\" | \"Detection\" | null,\n"
+            "  \"camera_name\": string or null (e.g. \"Cam 1\", \"Cam 2\", \"Cam 3\", \"Cam 4\", \"Cam 8\", \"Electronics Shelf\", \"Staff Backroom\", \"Checkout Counter\", \"Main Aisle\"),\n"
+            "  \"target_object\": \"person\" | \"customer\" | \"staff\" | \"bag\" | string or null,\n"
+            "  \"time_window_start\": \"HH:MM:SS\" or \"HH:MM\" or null,\n"
+            "  \"time_window_end\": \"HH:MM:SS\" or \"HH:MM\" or null,\n"
+            "  \"risk_level\": \"High\" | \"Medium\" | \"Low\" | null,\n"
+            "  \"keywords\": [\"list\", \"of\", \"salient\", \"words\"],\n"
+            "  \"unsupported_criteria\": string or null (explain if user asked for impossible things like facial identity, biometric emotion, license plate outside store, etc.)\n"
+            "}\n"
+            f"User Query: \"{raw_query}\"\n"
+            "JSON Response:"
+        )
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
+        text = response.text.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        data = json.loads(text)
+        return ParsedSearchFilters(**data)
+    except Exception as exc:
+        print(f"Gemini query parsing fallback triggered: {exc}")
+        return None
+
+def parse_query_offline(raw_query: str) -> ParsedSearchFilters:
+    q = raw_query.lower()
+    intent = "General Activity"
+    action = None
+    if any(w in q for w in ["loiter", "dwell", "linger", "waiting", "standing", "stayed"]):
+        intent = "Loitering"
+        action = "Loitering"
+    elif any(w in q for w in ["intrusion", "restricted", "backroom", "staff only", "safe", "boundary", "trespass"]):
+        intent = "Intrusion"
+        action = "Intrusion"
+    elif any(w in q for w in ["queue", "line", "cashier", "checkout", "billing", "register"]):
+        intent = "Queue"
+        action = "Queue"
+    elif any(w in q for w in ["theft", "steal", "pocket", "conceal", "shoplift"]):
+        intent = "Theft"
+        action = "Theft"
+    elif any(w in q for w in ["movement", "walk", "traffic", "visitor", "flow", "pedestrian"]):
+        intent = "Movement"
+        action = "Movement"
+
+    camera_name = None
+    if any(w in q for w in ["shelf", "electronic", "jewelry", "showcase"]):
+        camera_name = "Shelf"
+    elif any(w in q for w in ["backroom", "staff", "inventory"]):
+        camera_name = "Backroom"
+    elif any(w in q for w in ["checkout", "billing", "counter"]):
+        camera_name = "Checkout"
+    elif any(w in q for w in ["aisle", "entrance", "corridor"]):
+        camera_name = "Main Aisle"
+
+    risk_level = None
+    if any(w in q for w in ["high", "danger", "critical", "urgent", "serious"]):
+        risk_level = "High"
+    elif "medium" in q or "moderate" in q:
+        risk_level = "Medium"
+    elif "low" in q:
+        risk_level = "Low"
+
+    # Extract potential time patterns like "after 8 pm", "between 2 and 4", etc.
+    import re
+    time_start = None
+    time_end = None
+    time_match = re.search(r'(?:after|before|at|between)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?', q)
+    if time_match:
+        hr = int(time_match.group(1))
+        minute = int(time_match.group(2) or 0)
+        ampm = time_match.group(3)
+        if ampm == "pm" and hr < 12: hr += 12
+        elif ampm == "am" and hr == 12: hr = 0
+        time_start = f"{hr:02d}:{minute:02d}:00"
+
+    unsupported = None
+    if any(w in q for w in ["face", "facial", "identity", "name", "who is", "credit card", "license plate", "car"]):
+        unsupported = "Facial identification, personal names, and vehicle license plates are not tracked by the in-store CCTV database."
+
+    words = [w for w in re.findall(r'\b[a-zA-Z]{3,}\b', q) if w not in {"the", "and", "for", "with", "near", "show", "find", "all", "are", "people"}]
+    return ParsedSearchFilters(
+        intent=intent,
+        action=action,
+        camera_name=camera_name,
+        target_object="person",
+        time_window_start=time_start,
+        time_window_end=time_end,
+        risk_level=risk_level,
+        keywords=words,
+        unsupported_criteria=unsupported
+    )
+
+def generate_grounded_summary_gemini(client, raw_query: str, filters: ParsedSearchFilters, events: list[dict]) -> Optional[dict]:
+    try:
+        events_context = []
+        for e in events[:5]:
+            events_context.append({
+                "camera": e["camera_name"],
+                "action": e["action"],
+                "risk": e["risk"],
+                "video_timestamp_sec": e["video_time_seconds"],
+                "wall_time": e["timestamp"],
+                "confidence": f"{round(e['confidence'] * 100)}%",
+                "description": e["description"]
+            })
+        
+        prompt = (
+            "You are an AI Security Copilot for retail CCTV analytics.\n"
+            "Summarize the findings for the user query based ONLY on the provided CCTV evidence records.\n"
+            "CRITICAL RULES:\n"
+            "1. Ground every claim in the provided records. Never invent incidents, cameras, or timestamps.\n"
+            "2. Distinguish observed behavior (e.g. dwell time, motion) from suspected intent. Do not claim loitering proves theft or malicious intent.\n"
+            "3. If no matching events exist, state that clearly.\n"
+            "4. Output ONLY JSON in this schema:\n"
+            "{\n"
+            "  \"reasoning\": \"2-3 sentence grounded summary of observed events and cameras\",\n"
+            "  \"recommendation\": \"1 concrete operational recommendation for the security team\"\n"
+            "}\n\n"
+            f"User Query: \"{raw_query}\"\n"
+            f"Parsed Intent: {filters.intent}\n"
+            f"Evidence Records: {json.dumps(events_context)}\n"
+            "JSON Response:"
+        )
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
+        text = response.text.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        return json.loads(text)
+    except Exception as exc:
+        print(f"Gemini grounded summary fallback triggered: {exc}")
+        return None
+
 @app.post("/api/search/ai")
 def search_ai(req: AISearchRequest, db: Session = Depends(db_session)):
     raw_query = req.query.strip()
-    q = raw_query.lower()
+    if not raw_query:
+        return {"query": "", "total_matches": 0, "results": [], "llm_summary": None}
+
+    # 1. Initialize Gemini or fallback
+    client = get_gemini_client()
+    source_engine = "Gemini 2.5 Flash (via Google GenAI SDK)" if client else "RetailVision Rule-Based Engine (Offline Fallback)"
     
-    # 🧠 Semantic Tag Mapping & Synonym Expansion
-    intent_keywords = {
-        "loitering": ["loiter", "dwell", "linger", "waiting", "standing", "stayed", "shelf", "showcase", "jewelry", "counter"],
-        "intrusion": ["intrusion", "restricted", "backroom", "staff only", "safe", "boundary", "unauthorized", "crossed"],
-        "queue": ["queue", "line", "crowd", "checkout", "billing", "register", "cashier", "waiting line", "bottleneck"],
-        "theft": ["theft", "steal", "pocket", "conceal", "bag", "sweeping", "grab", "suspicious", "shoplift"],
-        "movement": ["movement", "walk", "customer", "traffic", "visitor", "person", "entering", "flow", "pedestrian"]
-    }
+    # 2. Parse Query to Structured Filters
+    filters: Optional[ParsedSearchFilters] = None
+    if client:
+        filters = parse_query_with_gemini(client, raw_query)
+        if not filters:
+            source_engine = "RetailVision Rule-Based Engine (Offline Fallback — API Error)"
     
-    matched_intents = []
-    for intent, words in intent_keywords.items():
-        if any(w in q for w in words):
-            matched_intents.append(intent)
-            
-    # Risk preference extraction
-    preferred_risk = "High" if any(w in q for w in ["high", "danger", "critical", "urgent", "theft", "intrusion"]) else None
-    
-    # Fetch events from SQLite database
+    if not filters:
+        filters = parse_query_offline(raw_query)
+
+    # 3. Retrieve and Score Evidence from Database
     db_events = db.query(Event).order_by(Event.timestamp.desc()).limit(150).all()
-    
     scored_results = []
+    
+    q_lower = raw_query.lower()
     for ev in db_events:
-        score = 60
         desc = (ev.description or "").lower()
         act = (ev.action or "").lower()
         cam = (ev.camera_name or "").lower()
-        risk = (ev.risk or "Low").lower()
+        risk = (ev.risk or "Low")
         
-        # Intent matching
-        for intent in matched_intents:
-            if intent in desc or intent in act or intent in cam:
-                score += 25
-                
-        # Word-level intersection
-        query_words = [w for w in q.split() if len(w) > 2]
-        for w in query_words:
-            if w in desc: score += 15
-            if w in act: score += 20
-            if w in cam: score += 15
+        score = 50
+        matched = False
+        
+        # Action/Intent matching
+        if filters.action and filters.action.lower() in act:
+            score += 30
+            matched = True
+        elif filters.intent != "General Activity" and filters.intent.lower() in (act + " " + desc):
+            score += 25
+            matched = True
             
-        if preferred_risk and ev.risk == preferred_risk:
+        # Camera/Zone matching
+        if filters.camera_name and filters.camera_name.lower() in cam:
+            score += 25
+            matched = True
+
+        # Risk matching
+        if filters.risk_level and filters.risk_level.lower() == risk.lower():
             score += 15
-            
-        score = min(99, max(65, score))
+            matched = True
+
+        # Time matching if timestamp available
+        if filters.time_window_start and ev.timestamp:
+            ev_time_str = ev.timestamp.strftime("%H:%M:%S")
+            if ev_time_str >= filters.time_window_start:
+                score += 10
+                matched = True
+
+        # Keyword matching
+        for kw in filters.keywords:
+            if kw.lower() in desc or kw.lower() in act or kw.lower() in cam:
+                score += 15
+                matched = True
+
+        # Fallback keyword match with raw query words
+        for w in q_lower.split():
+            if len(w) > 2 and (w in desc or w in act or w in cam):
+                score += 10
+                matched = True
+
+        score = min(99, max(60, score))
         
-        # Include if score >= 70 or general search
-        if not query_words or score >= 75 or any(w in desc or w in act or w in cam for w in query_words):
+        if matched or not filters.keywords:
             scored_results.append({
                 "id": ev.id,
                 "video_id": ev.video_id,
@@ -229,49 +433,67 @@ def search_ai(req: AISearchRequest, db: Session = Depends(db_session)):
                 "bbox_h": ev.bbox_h or 0.45,
                 "class_name": ev.class_name or "person"
             })
-            
-    # Sort by match score descending
+
     scored_results.sort(key=lambda x: x["match_score"], reverse=True)
     results = scored_results[:req.limit]
-    
-    # 🤖 LLM Reasoning & Synthesis Engine
+    total_found = len(results)
     high_count = sum(1 for r in results if r["risk"] == "High")
     med_count = sum(1 for r in results if r["risk"] == "Medium")
-    total_found = len(results)
-    
-    primary_focus = matched_intents[0].title() if matched_intents else "General Activity"
-    
-    if total_found > 0:
-        top_cam = results[0]["camera_name"]
-        top_time = results[0]["video_time_seconds"]
-        llm_reasoning = (
-            f"Semantic analysis parsed query for [{primary_focus}]. "
-            f"Correlated {total_found} relevant surveillance instances across store channels. "
-            f"Identified {high_count} high-priority and {med_count} medium-priority events. "
-            f"Highest-confidence match occurred on '{top_cam}' at {top_time:.1f}s playback position."
-        )
-        llm_recommendation = (
-            f"Dispatch staff to review {top_cam} footage or verify physical zone boundaries. "
-            f"Click 'View Evidence' below to scrub the center player directly to the target timestamp."
-        )
-    else:
-        llm_reasoning = (
-            f"The LLM parsed your query for [{primary_focus}], but no event records met the confidence threshold. "
-            f"Try broader terms such as 'loitering', 'backroom', or 'shelf'."
-        )
-        llm_recommendation = "Upload or run analysis on sample footage to generate target detection logs."
+
+    # 4. Synthesize Grounded Investigation Summary
+    llm_reasoning = None
+    llm_recommendation = None
+
+    if client and total_found > 0:
+        gemini_summary = generate_grounded_summary_gemini(client, raw_query, filters, results)
+        if gemini_summary:
+            llm_reasoning = gemini_summary.get("reasoning")
+            llm_recommendation = gemini_summary.get("recommendation")
+
+    # Fallback / Deterministic grounded summary
+    if not llm_reasoning:
+        if total_found > 0:
+            top_cam = results[0]["camera_name"]
+            top_time = results[0]["video_time_seconds"]
+            top_desc = results[0]["description"]
+            llm_reasoning = (
+                f"Retrieved {total_found} verified CCTV events matching intent [{filters.intent}]. "
+                f"Observed {high_count} high-priority and {med_count} medium-priority events. "
+                f"Primary instance recorded on {top_cam} at {top_time:.1f}s: \"{top_desc}\". "
+                f"Note: Observed dwell times represent behavioral duration, not verified intent."
+            )
+            llm_recommendation = (
+                f"Dispatch security or floor personnel to verify conditions at {top_cam}. "
+                f"Click 'View Evidence' below to scrub the center player directly to the {top_time:.1f}s mark."
+            )
+        else:
+            llm_reasoning = (
+                f"No matching surveillance events found in the CCTV database for [{filters.intent}] with query \"{raw_query}\". "
+                f"All existing channels operated within standard activity parameters."
+            )
+            llm_recommendation = "Verify the time window or try querying recorded channels (e.g. 'loitering near shelf' or 'intrusion in staff backroom')."
+
+    # Append disclosure if query requested unsupported criteria
+    if filters.unsupported_criteria:
+        llm_reasoning += f" Disclosed system limitation: {filters.unsupported_criteria}"
 
     return {
         "query": raw_query,
         "total_matches": total_found,
         "results": results,
         "llm_summary": {
-            "intent": primary_focus,
+            "intent": filters.intent,
             "reasoning": llm_reasoning,
             "recommendation": llm_recommendation,
             "high_risk_count": high_count,
             "medium_risk_count": med_count,
-            "engine": "RetailVision LLM Copilot (Hybrid Semantic Reasoning)"
+            "engine": source_engine,
+            "filters_applied": {
+                "action": filters.action,
+                "camera_name": filters.camera_name,
+                "risk_level": filters.risk_level,
+                "time_window": f"{filters.time_window_start} - {filters.time_window_end}" if filters.time_window_start else None
+            }
         }
     }
 

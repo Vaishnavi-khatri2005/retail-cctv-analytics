@@ -167,24 +167,42 @@ export default function SearchPage() {
 
         {/* 🤖 LLM Copilot Insights Card */}
         {llmSummary && (
-          <div className="mt-5 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-slate-50 p-4.5 shadow-xs animate-in fade-in duration-200">
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-blue-200/60">
+          <div className="mt-5 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-slate-50 p-5 shadow-xs animate-in fade-in duration-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-3 border-b border-blue-200/60">
               <div className="flex items-center gap-2 text-blue-900 font-bold text-xs uppercase tracking-wide">
                 <Sparkles size={16} className="text-blue-600 animate-pulse" />
-                <span>AI Security Copilot (LLM Reasoning Engine)</span>
+                <span>AI Security Copilot</span>
               </div>
-              <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-blue-600 text-white">
-                Intent: {llmSummary.intent}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full border ${
+                  llmSummary.engine && llmSummary.engine.includes("Gemini")
+                    ? "bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold"
+                    : "bg-slate-100 text-slate-700 border-slate-300"
+                }`}>
+                  {llmSummary.engine || "Rule-Based Offline Fallback"}
+                </span>
+                <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-blue-600 text-white">
+                  Intent: {llmSummary.intent}
+                </span>
+              </div>
             </div>
+
             <p className="text-sm leading-relaxed text-slate-800 font-medium">
               {llmSummary.reasoning}
             </p>
+
             {llmSummary.recommendation && (
-              <p className="text-xs text-blue-800 mt-2 font-semibold flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                <span>Action Recommended: {llmSummary.recommendation}</span>
-              </p>
+              <div className="mt-3 pt-2.5 border-t border-blue-200/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <p className="text-xs text-blue-900 font-semibold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
+                  <span>Action Recommended: {llmSummary.recommendation}</span>
+                </p>
+                {eventsData.length > 0 && eventsData[0].camera_name && (
+                  <span className="text-[11px] text-slate-600 font-mono bg-white/70 px-2.5 py-0.5 rounded-md border border-slate-200 shrink-0">
+                    Target: {eventsData[0].camera_name}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         )}
